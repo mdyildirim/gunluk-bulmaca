@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<!--SEO-START-->
+<title>Cumhuriyet — Günlük Kare Bulmaca</title>
+<meta name="description" content="Cumhuriyet'in günlük kare bulmacası. Her gün yeni bulmaca; mobil ve masaüstünde kolayca çözün." />
+<link rel="canonical" href="https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/" />
+<!--SEO-END-->
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">CUMHURİYET</div>
+    <div class="sub">Günlük Kare Bulmaca</div>
+  </header>
+  <div class="dateline"><span id="dateText">—</span><span>No: <strong id="puzzleNo">—</strong></span></div>
+
+  <div class="cluebar">
+    <button id="prevClue" aria-label="Önceki">‹</button>
+    <div class="body"><div class="tag" id="clueTag">—</div><div class="txt" id="clueText">Yükleniyor…</div></div>
+    <button id="nextClue" aria-label="Sonraki">›</button>
+  </div>
+
+  <div class="banner" id="banner">🎉 Tebrikler! Bulmacayı tamamladınız.</div>
+
+  <div class="layout">
+    <div class="board-col">
+      <div class="zoom"><span>Boyut</span><button id="zoomOut">−</button><button id="zoomIn">+</button></div>
+      <div class="board-scroll"><div class="board" id="board"></div></div>
+      <div class="controls">
+        <label class="toggle"><input type="checkbox" id="instant" checked> Anında kontrol</label>
+        <button class="ctl" id="btnCheckWord">Kelimeyi Kontrol</button>
+        <button class="ctl" id="btnReveal">Çöz / Göster</button>
+        <button class="ctl" id="btnClear">Temizle</button>
+      </div>
+    </div>
+    <div class="clues">
+      <div class="cluelist"><h3>Soldan Sağa</h3><ol id="acrossList"></ol></div>
+      <div class="cluelist"><h3>Yukarıdan Aşağıya</h3><ol id="downList"></ol></div>
+    </div>
+  </div>
+
+  <nav class="archive"><a id="prevDay" href="#">‹ Önceki gün</a><a id="todayLink" href="./">Bugün</a><a id="nextDay" href="#">Sonraki gün ›</a></nav>
+  <div class="foot">Cumhuriyet · Günlük Kare Bulmaca</div>
+</div>
+
+<input class="hidden-input" id="hiddenInput" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
+<script type="module" src="./player.js"></script>
+</body>
+</html>

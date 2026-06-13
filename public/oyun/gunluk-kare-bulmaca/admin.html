@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Günlük Kare Bulmaca — Editör</title>
+<style>
+  :root{--accent:#b3122b;--ink:#1a1a1a;--muted:#6b6b6b;--line:#d0ccc2;--bg:#f4f1ea;
+        --ok:#2b8a3e;--warn:#e8a317;--err:#e03131;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);padding:18px;}
+  h1{font-size:20px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px;}
+  .grid2{display:grid;grid-template-columns:1fr;gap:20px;}
+  @media(min-width:900px){.grid2{grid-template-columns:380px 1fr;align-items:start;}}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px;}
+  .card h2{font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px;}
+  input[type=text],input[type=date],textarea{width:100%;padding:8px;border:1px solid var(--line);
+    border-radius:6px;font-family:var(--sans);font-size:14px;}
+  textarea#grid{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:18px;line-height:1.5;
+    letter-spacing:6px;text-transform:uppercase;min-height:160px;white-space:pre;}
+  .row{display:flex;gap:10px;}.row>div{flex:1;}
+  button{font-size:13px;padding:8px 13px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  button:hover{filter:brightness(.97);}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .preview-grid{display:grid;gap:1px;background:#1a1a1a;border:2px solid #1a1a1a;width:max-content;max-width:100%;}
+  .pc{width:26px;height:26px;background:#fff;position:relative;display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,serif;font-weight:600;font-size:14px;}
+  .pc.b{background:#1a1a1a;}
+  .pc .n{position:absolute;top:0;left:1px;font-size:8px;color:#888;font-family:var(--sans);}
+  .clue-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .clue-cols h3{font-size:13px;margin:0 0 6px;border-bottom:2px solid #1a1a1a;padding-bottom:3px;}
+  .clue-row{display:flex;gap:6px;align-items:center;margin-bottom:5px;}
+  .clue-row .lbl{font-size:12px;min-width:64px;font-weight:600;}
+  .clue-row .lbl small{color:var(--accent);font-weight:400;}
+  .clue-row input{flex:1;padding:5px;font-size:13px;}
+  #report{font-size:13px;line-height:1.5;}
+  #report .e{color:var(--err);} #report .w{color:var(--warn);} #report .ok{color:var(--ok);font-weight:600;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:6px;border-bottom:1px solid var(--line);}
+  .pill{font-size:11px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);}
+  .pill.scheduled{background:#fff3bf;} .pill.draft{background:#f1f3f5;}
+  td a{color:var(--accent);}
+</style>
+</head>
+<body>
+  <h1>Günlük Kare Bulmaca — Editör</h1>
+  <div class="sub">Çözülmüş ızgarayı yaz, ipuçlarını gir, doğrula, önizle ve yayın tarihi ata.</div>
+
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <h2>1 · Künye</h2>
+        <div class="row">
+          <div><label>Yayın tarihi</label><input type="date" id="date"></div>
+          <div><label>Bulmaca No</label><input type="text" id="no" placeholder="13"></div>
+        </div>
+        <label>Başlık</label><input type="text" id="title" value="Günün Kare Bulmacası">
+      </div>
+      <div class="card">
+        <h2>2 · Izgara (çözüm)</h2>
+        <div class="sub" style="margin:0 0 8px">Her satır bir satır. Harf = dolu kare, <b>#</b> = siyah kare. Eşit uzunlukta yazın.</div>
+        <textarea id="grid" spellcheck="false">TAM#
+E#AY
+KASA
+#KAR</textarea>
+        <div class="btns"><button id="genClues">İpuçlarını oluştur →</button></div>
+      </div>
+      <div class="card">
+        <h2>Kayıtlı bulmacalar</h2>
+        <table id="list"><tbody><tr><td class="sub">Yükleniyor…</td></tr></tbody></table>
+      </div>
+    </div>
+    <div>
+      <div class="card"><h2>Önizleme</h2><div id="previewGrid" class="preview-grid"></div>
+        <div class="btns"><a id="openPlayer" href="#" target="_blank"><button>Oyuncu önizlemesi ↗</button></a></div></div>
+      <div class="card">
+        <h2>3 · İpuçları</h2>
+        <div class="clue-cols">
+          <div><h3>Soldan Sağa</h3><div id="acrossClues"></div></div>
+          <div><h3>Yukarıdan Aşağıya</h3><div id="downClues"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>4 · Doğrula & Yayınla</h2>
+        <div id="report" class="sub">Henüz doğrulanmadı.</div>
+        <div class="btns">
+          <button id="validate">Doğrula</button>
+          <button id="saveDraft">Taslak Kaydet</button>
+          <button id="schedule" class="primary">Yayına Zamanla</button>
+          <button id="exportJson">JSON indir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

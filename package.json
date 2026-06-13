@@ -1,0 +1,16 @@
+{
+  "name": "cumhuriyet-gunluk-bulmaca",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "preview": "node server.mjs",
+    "deploy": "wrangler pages deploy public --project-name cumhuriyet-gunluk-bulmaca",
+    "d1:migrate:local": "wrangler d1 migrations apply DB --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply DB --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
