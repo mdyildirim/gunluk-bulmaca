@@ -144,7 +144,16 @@ function render(){
   $("clueTag").textContent=w?`${w.num} ${w.dir==="across"?"Soldan Sağa":"Yukarıdan Aşağıya"}`:"—";
   $("clueText").textContent=w?w.clue:"—";
   document.querySelectorAll(".cluelist li").forEach(li=>li.classList.remove("sel"));
-  if(w){const li=document.querySelector(`.cluelist li[data-key="${w.key}"]`);if(li)li.classList.add("sel");}
+  if(w){
+    const li=document.querySelector(`.cluelist li[data-key="${w.key}"]`);
+    if(li){
+      li.classList.add("sel");
+      // Etkin ipucunu yalnızca kendi listesinin içinde görünür kıl (sayfa kaymaz).
+      const ol=li.parentElement, top=li.offsetTop, bot=top+li.offsetHeight;
+      if(top<ol.scrollTop) ol.scrollTop=top;
+      else if(bot>ol.scrollTop+ol.clientHeight) ol.scrollTop=bot-ol.clientHeight;
+    }
+  }
   try{localStorage.setItem(STORAGE,JSON.stringify({entries}));}catch(e){}
 }
 

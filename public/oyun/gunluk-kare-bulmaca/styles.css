@@ -34,11 +34,18 @@ header.masthead{text-align:center;border-bottom:3px double var(--line);padding-b
 .layout{display:grid;grid-template-columns:1fr;gap:18px;}
 @media(min-width:760px){.layout{grid-template-columns:auto 1fr;align-items:start;}}
 
-.board-col{display:flex;flex-direction:column;align-items:center;gap:10px;}
+/* min-width:0 → grid/flex öğesinin içeriğinden (geniş ızgara) küçülebilmesi;
+   böylece tüm sayfa yatay kayacağına yalnızca .board-scroll içi kayar. */
+.board-col{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0;max-width:100%;}
 .board-scroll{max-width:100%;overflow:auto;border:1px solid var(--line-soft);
   border-radius:6px;background:var(--paper);-webkit-overflow-scrolling:touch;}
-.board{display:grid;background:var(--line);gap:1px;padding:0;}
+/* Izgara çizgileri her hücrenin kendi kenarlığıdır (gap + arka plan sızması
+   değil). Büyük hücre boyutlarında derleyicinin 1px boşlukları yutup çizgileri
+   kaybetmesini önler. Çizgi yalnız sağ+alt; tahta üst+sol kenarı tamamlar. */
+.board{display:grid;background:var(--paper);gap:0;padding:0;
+  border-top:1px solid var(--line);border-left:1px solid var(--line);}
 .cell{position:relative;width:var(--cell);height:var(--cell);background:var(--paper);
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font-family:var(--serif);
   font-weight:600;font-size:calc(var(--cell)*.5);text-transform:uppercase;cursor:pointer;
   user-select:none;color:var(--ink);}
@@ -68,7 +75,15 @@ button.ctl:hover{background:#f0ece2;}
 @media(min-width:480px){.clues{grid-template-columns:1fr 1fr;}}
 .cluelist h3{font-family:var(--serif);font-size:14px;margin:0 0 6px;border-bottom:2px solid var(--line);
   padding-bottom:4px;text-transform:uppercase;letter-spacing:1px;}
-.cluelist ol{list-style:none;margin:0;padding:0;}
+/* İpucu listesi kendi içinde kayar (sayfayı uzatmaz). position:relative →
+   etkin ipucunu listenin içinde konumlamak için. overscroll-behavior →
+   liste sonuna gelince sayfanın kaymasını engeller. */
+.cluelist ol{list-style:none;margin:0;padding:0;position:relative;
+  max-height:44vh;overflow-y:auto;overscroll-behavior:contain;}
+@media(min-width:760px){.cluelist ol{max-height:68vh;}}
+.cluelist ol::-webkit-scrollbar{width:8px;}
+.cluelist ol::-webkit-scrollbar-thumb{background:var(--line-soft);border-radius:4px;}
+.cluelist ol::-webkit-scrollbar-track{background:transparent;}
 .cluelist li{display:flex;gap:8px;font-size:13px;line-height:1.4;padding:4px 6px;border-radius:5px;cursor:pointer;}
 .cluelist li:hover{background:#efeadf;}
 .cluelist li.sel{background:var(--hl);}
