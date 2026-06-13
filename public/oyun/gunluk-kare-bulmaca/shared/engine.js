@@ -12,6 +12,19 @@
    ========================================================================= */
 
 export const TR_UP = s => (s || "").toLocaleUpperCase("tr-TR");
+
+// URL tarih biçimi Türkçe: GG-AA-YYYY (ör. 13-06-2026).
+// Dahili/DB biçimi ISO: YYYY-AA-GG (sıralama + birincil anahtar için).
+export const isUrlDate = (s) => /^\d{2}-\d{2}-\d{4}$/.test(s || "");
+export function urlDateToIso(s) {
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s || "");
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+export function isoToUrlDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || "");
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+
 // İzin verilen ızgara harfleri (Türkçe dahil). Siyah kare = '#'.
 const ALLOWED = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ";
 export const isLetter = ch => ALLOWED.includes(TR_UP(ch));

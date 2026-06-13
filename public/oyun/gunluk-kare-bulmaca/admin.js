@@ -1,4 +1,4 @@
-import { buildWords, normalizeSolution, validate } from "./shared/engine.js";
+import { buildWords, normalizeSolution, validate, isoToUrlDate } from "./shared/engine.js";
 
 const BASE = "/oyun/gunluk-kare-bulmaca";
 const $=id=>document.getElementById(id);
@@ -42,7 +42,7 @@ function genClues(){
   m.words.filter(w=>w.dir==="across").sort((x,y)=>x.num-y.num).forEach(w=>a.appendChild(mk(w)));
   m.words.filter(w=>w.dir==="down").sort((x,y)=>x.num-y.num).forEach(w=>d.appendChild(mk(w)));
   renderPreview();
-  $("openPlayer").href=`${BASE}/${$("date").value}`;
+  $("openPlayer").href=`${BASE}/${isoToUrlDate($("date").value)||""}`;
 }
 function payload(){
   return {date:$("date").value,no:$("no").value,title:$("title").value,solution:readGrid(),clues};
@@ -70,7 +70,7 @@ async function loadList(){
     const tb=$("list").querySelector("tbody");tb.innerHTML="";
     if(!puzzles||!puzzles.length){tb.innerHTML='<tr><td class="sub">Kayıt yok.</td></tr>';return;}
     puzzles.forEach(p=>{const tr=document.createElement("tr");
-      tr.innerHTML=`<td><a href="${BASE}/${p.puzzle_date}" target="_blank">${p.puzzle_date}</a></td><td>${p.no||""}</td><td><span class="pill ${p.status}">${p.status}</span></td>`;
+      tr.innerHTML=`<td><a href="${BASE}/${isoToUrlDate(p.puzzle_date)}" target="_blank">${p.puzzle_date}</a></td><td>${p.no||""}</td><td><span class="pill ${p.status}">${p.status}</span></td>`;
       tb.appendChild(tr);});
   }catch(e){$("list").querySelector("tbody").innerHTML='<tr><td class="sub">API yok (yerel statik önizleme).</td></tr>';}
 }

@@ -1,4 +1,4 @@
-import { buildPuzzle, isLetter, TR_UP } from "./shared/engine.js";
+import { buildPuzzle, isLetter, TR_UP, isUrlDate, urlDateToIso, isoToUrlDate } from "./shared/engine.js";
 
 /* Mount tabanı — Cumhuriyet proxy'si bu yolu bu projeye yönlendirir. */
 const BASE = "/oyun/gunluk-kare-bulmaca";
@@ -32,7 +32,9 @@ let P, sel={r:null,c:null,dir:"across"}, entries={}, instant=true, STORAGE="", a
 const $=id=>document.getElementById(id);
 
 function dateFromUrl(){
-  const m = ISO.exec(location.pathname); if(m) return m[1];
+  // Yol Türkçe biçimde: /oyun/gunluk-kare-bulmaca/13-06-2026 → dahili ISO'ya çevir.
+  const m = /(\d{2}-\d{2}-\d{4})/.exec(location.pathname);
+  if(m && isUrlDate(m[1])) return urlDateToIso(m[1]);
   const q = new URLSearchParams(location.search).get("date");
   return q && ISO.test(q) ? q : null;
 }
@@ -86,8 +88,8 @@ function init(raw){
 function buildArchiveNav(){
   const d = ISO.exec(activeDate||P.date||"")?.[1];
   if(!d){ $("prevDay").classList.add("disabled"); $("nextDay").classList.add("disabled"); return; }
-  $("prevDay").href=`${BASE}/${shiftDate(d,-1)}`;
-  $("nextDay").href=`${BASE}/${shiftDate(d, 1)}`;
+  $("prevDay").href=`${BASE}/${isoToUrlDate(shiftDate(d,-1))}`;
+  $("nextDay").href=`${BASE}/${isoToUrlDate(shiftDate(d, 1))}`;
   $("todayLink").href=`${BASE}/`;
 }
 

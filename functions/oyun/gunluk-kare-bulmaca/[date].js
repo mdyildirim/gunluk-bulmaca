@@ -1,4 +1,5 @@
-import { isISODate, todayInIstanbul } from "../../_lib/dates.js";
+import { todayInIstanbul } from "../../_lib/dates.js";
+import { isUrlDate, urlDateToIso } from "../../_lib/engine.js";
 
 // GET /oyun/gunluk-kare-bulmaca/:date
 // Tarih biçimindeki yolları, güne özel SEO etiketleriyle oyuncu HTML'i olarak
@@ -7,15 +8,16 @@ import { isISODate, todayInIstanbul } from "../../_lib/dates.js";
 // servise düşürülür.
 const MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
 
-function pretty(date) {
-  const d = new Date(date + "T00:00:00");
+function pretty(iso) {
+  const d = new Date(iso + "T00:00:00");
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export const onRequestGet = async (context) => {
   const { params, request, env } = context;
-  const date = Array.isArray(params.date) ? params.date[0] : params.date;
-  if (!isISODate(date)) return context.next(); // statik dosya veya 404
+  const urlDate = Array.isArray(params.date) ? params.date[0] : params.date;
+  if (!isUrlDate(urlDate)) return context.next(); // statik dosya veya 404
+  const iso = urlDateToIso(urlDate);
 
   const base = await fetch(new URL("/oyun/gunluk-kare-bulmaca/index.html", request.url));
   if (!base.ok) return context.next();
@@ -23,14 +25,14 @@ export const onRequestGet = async (context) => {
 
   const row = await env.DB
     .prepare("SELECT no,status FROM puzzles WHERE puzzle_date=?")
-    .bind(date)
+    .bind(iso)
     .first();
-  const isLive = row && row.status !== "draft" && date <= todayInIstanbul();
+  const isLive = row && row.status !== "draft" && iso <= todayInIstanbul();
 
-  const title = `${pretty(date)} Kare Bulmaca${row?.no ? " No: " + row.no : ""} — Cumhuriyet`;
-  const canonical = `https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/${date}`;
+  const title = `${pretty(iso)} Kare Bulmaca${row?.no ? " No: " + row.no : ""} — Cumhuriyet`;
+  const canonical = `https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/${urlDate}`;
   const robots = isLive ? "index, follow, max-image-preview:large" : "noindex, follow";
-  const desc = `${pretty(date)} tarihli Cumhuriyet günlük kare bulmacası. Mobil ve masaüstünde kolayca çözün.`;
+  const desc = `${pretty(iso)} tarihli Cumhuriyet günlük kare bulmacası. Mobil ve masaüstünde kolayca çözün.`;
 
   const seo = [
     `<title>${title}</title>`,

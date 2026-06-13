@@ -10,11 +10,13 @@ projesini örnek alır; ayrıntılar için `AGENTS.md`.
 
 ```
 cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/            → bugünün bulmacası
-cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/2026-06-13  → o güne ait (arşiv/paylaşım)
+cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/13-06-2026  → o güne ait (arşiv/paylaşım)
 cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/admin.html  → editör (Basic auth)
 ```
 
-Tarihler ISO (`YYYY-MM-DD`). Tarihli sayfalar sunucuda güne özel SEO etiketleri
+URL'de tarih Türkçe biçimde (`GG-AA-YYYY`, ör. `13-06-2026`); dahili/DB biçimi
+ISO (`YYYY-AA-GG`) — dönüşüm `engine.js`'teki `urlDateToIso`/`isoToUrlDate` ile
+kenarda yapılır. Tarihli sayfalar sunucuda güne özel SEO etiketleri
 (title/canonical/OG/robots) ile üretilir.
 
 ## Mimari (Cloudflare Pages)
