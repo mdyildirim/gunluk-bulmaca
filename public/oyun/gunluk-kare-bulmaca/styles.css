@@ -84,5 +84,15 @@ button.ctl:hover{background:#f0ece2;}
 .archive a:hover{text-decoration:underline;}
 .archive a.disabled{color:var(--line-soft);pointer-events:none;}
 
+.demo-badge{text-align:center;background:var(--accent-soft);color:var(--accent);
+  border:1px solid var(--accent);border-radius:8px;padding:7px 10px;margin-bottom:10px;
+  font-size:12px;font-weight:600;}
+.notice{text-align:center;background:var(--paper);border:1px solid var(--line-soft);
+  border-radius:10px;padding:38px 22px;margin:16px 0;}
+.notice-h{font-family:var(--serif);font-size:21px;font-weight:700;margin-bottom:10px;}
+.notice-p{color:var(--muted);font-size:14px;line-height:1.55;max-width:420px;margin:0 auto 18px;}
+.notice-btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;
+  padding:9px 17px;border-radius:8px;font-size:14px;font-weight:600;}
+
 .hidden-input{position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;left:-9999px;top:0;}
 .foot{text-align:center;color:var(--muted);font-size:11px;margin-top:22px;}

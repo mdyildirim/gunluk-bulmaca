@@ -39,16 +39,31 @@ function dateFromUrl(){
   return q && ISO.test(q) ? q : null;
 }
 
+// Sonuç durumları: ok (gerçek bulmaca), empty (o gün yok / 404),
+// error (beklenmeyen hata), demo (API'ye hiç ulaşılamadı → yerel önizleme).
 async function loadPuzzle(){
   const params=new URLSearchParams(location.search);
-  if(params.get("demo")) return fillerPuzzle(parseInt(params.get("demo"))||21);
+  // ?demo → gerçekçi örnek bulmaca (API'siz önizleme); ?demo=21 → NxN yerleşim testi.
+  if(params.has("demo")){
+    const n=parseInt(params.get("demo"));
+    return {state:"ok", puzzle: n ? fillerPuzzle(n) : FALLBACK};
+  }
   const date=dateFromUrl();
   activeDate=date;
   try{
     const res=await fetch(date ? `${BASE}/api/puzzle/${date}` : `${BASE}/api/today`);
-    if(res.ok){ const d=await res.json(); if(d&&d.solution){ activeDate=d.date||date; return d; } }
-  }catch(e){}
-  return FALLBACK;
+    if(res.ok){
+      const d=await res.json();
+      if(d&&d.solution){ activeDate=d.date||date; return {state:"ok", puzzle:d}; }
+      return {state:"error", date};
+    }
+    if(res.status===404) return {state:"empty", date};
+    return {state:"error", date};
+  }catch(e){
+    // API'ye hiç ulaşılamadı (ör. `npm run preview` ile statik önizleme) →
+    // açıkça "demo" etiketiyle örnek bulmacayı göster, hatayı gizleme.
+    return {state:"demo", puzzle:FALLBACK, date};
+  }
 }
 
 function init(raw){
@@ -79,18 +94,40 @@ function init(raw){
     board.appendChild(el);
   }
   buildClueLists();
-  buildArchiveNav();
+  setArchiveNav(ISO.exec(activeDate||P.date||"")?.[1]||null);
   const first=[...P.words].sort((a,b)=>a.num-b.num)[0];
   if(first)sel={r:first.cells[0].r,c:first.cells[0].c,dir:first.dir};
   render(); checkComplete();
 }
 
-function buildArchiveNav(){
-  const d = ISO.exec(activeDate||P.date||"")?.[1];
-  if(!d){ $("prevDay").classList.add("disabled"); $("nextDay").classList.add("disabled"); return; }
-  $("prevDay").href=`${BASE}/${isoToUrlDate(shiftDate(d,-1))}`;
-  $("nextDay").href=`${BASE}/${isoToUrlDate(shiftDate(d, 1))}`;
+function setArchiveNav(iso){
   $("todayLink").href=`${BASE}/`;
+  if(iso){
+    $("prevDay").href=`${BASE}/${isoToUrlDate(shiftDate(iso,-1))}`;
+    $("nextDay").href=`${BASE}/${isoToUrlDate(shiftDate(iso, 1))}`;
+  }else{
+    $("prevDay").classList.add("disabled");
+    $("nextDay").classList.add("disabled");
+  }
+}
+
+// API "bugün/bu tarih için bulmaca yok" (404) ya da hata döndürdüğünde:
+// demo bulmacayla maskelemek yerine dürüst bir bilgi ekranı göster.
+function showNotice(state, date){
+  const iso = ISO.exec(date||"")?.[1];
+  $("dateText").textContent = iso ? trDate(iso) : "—";
+  $("puzzleNo").textContent = "—";
+  if(iso) document.title = `${trDate(iso)} Kare Bulmaca — Cumhuriyet`;
+  document.querySelector(".cluebar").style.display="none";
+  document.querySelector(".layout").style.display="none";
+  const m = state==="empty"
+    ? {h:"Bu güne ait bulmaca yok", p:"Bu tarih için bulmaca henüz yayımlanmamış olabilir. Bugünün bulmacasını ya da diğer günleri deneyebilirsiniz."}
+    : {h:"Bulmaca yüklenemedi", p:"Beklenmeyen bir sorun oluştu. Lütfen biraz sonra tekrar deneyin."};
+  $("notice").innerHTML =
+    `<div class="notice-h">${m.h}</div><div class="notice-p">${m.p}</div>`+
+    `<a class="notice-btn" href="${BASE}/">Bugünün bulmacası</a>`;
+  $("notice").style.display="block";
+  setArchiveNav(iso||null);
 }
 
 function activeWord(){const k=sel.r+","+sel.c;if(sel.r===null||!P.cellWords[k])return null;
@@ -178,4 +215,9 @@ function checkComplete(){for(const k in window.cellEls){const[r,c]=k.split(",").
   $("banner").classList.add("show");}
 
 document.body.addEventListener("click",()=>{if(sel.r!==null)focusInput();});
-loadPuzzle().then(init);
+
+loadPuzzle().then(r=>{
+  if(r.state==="ok"){ init(r.puzzle); }
+  else if(r.state==="demo"){ init(r.puzzle); $("demoBadge").style.display="block"; }
+  else { showNotice(r.state, r.date); }
+});

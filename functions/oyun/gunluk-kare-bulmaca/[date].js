@@ -43,7 +43,9 @@ export const onRequestGet = async (context) => {
     `<meta property="og:locale" content="tr_TR" />`,
     `<meta property="og:title" content="${title}" />`,
     `<meta property="og:description" content="${desc}" />`,
-    `<meta property="og:url" content="${canonical}" />`
+    `<meta property="og:url" content="${canonical}" />`,
+    `<meta property="og:image" content="https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/og.svg" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`
   ].join("\n");
 
   html = html.replace(/<!--SEO-START-->[\s\S]*?<!--SEO-END-->/, seo);

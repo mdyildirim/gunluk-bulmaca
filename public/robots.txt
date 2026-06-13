@@ -1,0 +1,9 @@
+# Bu dosya yalnızca *.pages.dev kaynağı için geçerlidir.
+# Yayın alan adı cumhuriyet.com.tr'nin KÖK robots.txt'si Cumhuriyet'in
+# kontrolündedir; oraya da admin yasağı + Sitemap satırı eklenmelidir
+# (ayrıntı: AGENTS.md).
+User-agent: *
+Disallow: /oyun/gunluk-kare-bulmaca/admin.html
+Disallow: /oyun/gunluk-kare-bulmaca/api/
+
+Sitemap: https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/sitemap.xml

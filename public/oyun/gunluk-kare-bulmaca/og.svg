@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f4f1ea"/>
+  <!-- mini kare bulmaca motifi -->
+  <g transform="translate(80,115)">
+    <rect x="-6" y="-6" width="412" height="412" fill="#1a1a1a"/>
+    <g fill="#ffffff">
+      <!-- 5x5 ızgara; siyah kareler boş bırakıldı -->
+      <rect x="0"   y="0"   width="78" height="78"/>
+      <rect x="80"  y="0"   width="78" height="78"/>
+      <rect x="160" y="0"   width="78" height="78"/>
+      <rect x="320" y="0"   width="78" height="78"/>
+      <rect x="0"   y="80"  width="78" height="78"/>
+      <rect x="160" y="80"  width="78" height="78"/>
+      <rect x="240" y="80"  width="78" height="78"/>
+      <rect x="320" y="80"  width="78" height="78"/>
+      <rect x="0"   y="160" width="78" height="78"/>
+      <rect x="80"  y="160" width="78" height="78"/>
+      <rect x="160" y="160" width="78" height="78"/>
+      <rect x="240" y="160" width="78" height="78"/>
+      <rect x="320" y="160" width="78" height="78"/>
+      <rect x="80"  y="240" width="78" height="78"/>
+      <rect x="160" y="240" width="78" height="78"/>
+      <rect x="320" y="240" width="78" height="78"/>
+      <rect x="0"   y="320" width="78" height="78"/>
+      <rect x="80"  y="320" width="78" height="78"/>
+      <rect x="240" y="320" width="78" height="78"/>
+      <rect x="320" y="320" width="78" height="78"/>
+    </g>
+    <g fill="#1a1a1a" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="48" text-anchor="middle">
+      <text x="39"  y="54">K</text>
+      <text x="119" y="54">A</text>
+      <text x="199" y="54">R</text>
+      <text x="39"  y="214">B</text>
+      <text x="119" y="214">U</text>
+      <text x="199" y="214">L</text>
+      <text x="279" y="214">M</text>
+      <text x="359" y="214">A</text>
+    </g>
+  </g>
+  <!-- başlık -->
+  <g transform="translate(560,0)">
+    <text x="0" y="245" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="64" fill="#1a1a1a" letter-spacing="1">CUMHURİYET</text>
+    <rect x="2" y="270" width="430" height="4" fill="#b3122b"/>
+    <text x="0" y="345" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="58" fill="#1a1a1a">Günlük Kare</text>
+    <text x="0" y="415" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="58" fill="#b3122b">Bulmaca</text>
+    <text x="0" y="475" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="26" fill="#6b6b6b">Her gün yeni bulmaca · mobil ve masaüstü</text>
+  </g>
+</svg>

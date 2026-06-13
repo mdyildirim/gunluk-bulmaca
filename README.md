@@ -51,6 +51,7 @@ Veri biçimi:
 ```bash
 npm install
 npm run d1:migrate:local          # yerel D1 şeması
+npx wrangler d1 execute DB --local --file=seeds/local.sql   # örnek bulmacalar
 npm run dev                       # wrangler pages dev (Functions + D1)
 ```
 
@@ -58,7 +59,9 @@ Yalnızca arayüz (Functions olmadan, hızlı):
 ```bash
 npm run preview                   # http://localhost:4599/oyun/gunluk-kare-bulmaca/
 ```
-`?demo=21` → büyük ızgara yerleşim testi.
+API olmadığından kök sayfa "bu güne ait bulmaca yok" bilgisini gösterir (bu
+doğru davranış). Önizleme için: `?demo` → gerçekçi örnek bulmaca · `?demo=21` →
+büyük ızgara yerleşim testi. Gerçek veriyle denemek için `npm run dev`.
 
 ## İlk kurulum (Cloudflare)
 

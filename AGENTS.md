@@ -54,10 +54,30 @@ The admin surface must **not** be exposed through the Cumhuriyet proxy — keep
 - `/api/puzzle/:date` hides `draft` rows and future dates; the editor previews
   drafts via the admin API / the player's offline fallback.
 
+## SEO / robots / sitemap
+
+- **Sitemap** is dynamic: `GET /oyun/gunluk-kare-bulmaca/sitemap.xml`
+  (`functions/.../sitemap.xml.js`) lists every live (non-draft, date-reached)
+  puzzle from D1. No static file to keep in sync.
+- **robots.txt is only honored at the domain root.** `public/robots.txt`
+  governs the `*.pages.dev` origin only (disallows `admin.html` + `/api/`).
+  Crawlers ignore a robots.txt under `/oyun/...`, so **ask Cumhuriyet to add to
+  their root `cumhuriyet.com.tr/robots.txt`:**
+
+  ```
+  Disallow: /oyun/gunluk-kare-bulmaca/admin.html
+  Disallow: /oyun/gunluk-kare-bulmaca/api/
+  Sitemap: https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/sitemap.xml
+  ```
+- **og:image** is currently `og.svg`. Facebook/Twitter(X) do not render SVG
+  share images — replace with a rasterized 1200×630 `og.png` (and switch the
+  `og:image` refs in `index.html` + `[date].js`) before relying on social cards.
+
 ## Verification
 
 ```bash
 npm run preview        # UI-only static check
 npm run dev            # full stack (Functions + local D1)
 curl http://localhost:8788/oyun/gunluk-kare-bulmaca/api/today
+curl http://localhost:8788/oyun/gunluk-kare-bulmaca/sitemap.xml
 ```
