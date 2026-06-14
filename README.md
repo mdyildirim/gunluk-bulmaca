@@ -11,6 +11,7 @@ projesini örnek alır; ayrıntılar için `AGENTS.md`.
 ```
 cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/            → bugünün bulmacası
 cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/13-06-2026  → o güne ait (arşiv/paylaşım)
+cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/arsiv      → genel sayfa: bugünün önizlemesi + tüm bulmacalar
 cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/admin.html  → editör (Basic auth)
 ```
 
@@ -26,7 +27,9 @@ kenarda yapılır. Tarihli sayfalar sunucuda güne özel SEO etiketleri
 | Oyuncu | `public/oyun/gunluk-kare-bulmaca/{index.html,player.js,styles.css}` |
 | Editör | `public/oyun/gunluk-kare-bulmaca/{admin.html,admin.js}` (Basic auth) |
 | Motor (numaralama, kelime tespiti, doğrulama) | `public/oyun/gunluk-kare-bulmaca/shared/engine.js` — tarayıcı **ve** Functions aynı dosyayı kullanır |
+| Genel/arşiv sayfası | `public/oyun/gunluk-kare-bulmaca/{arsiv.html,arsiv.js}` |
 | Bugünün API'si | `functions/oyun/gunluk-kare-bulmaca/api/today.js` |
+| Liste API'si (arşiv künyesi) | `functions/oyun/gunluk-kare-bulmaca/api/list.js` |
 | Tarihli API | `functions/oyun/gunluk-kare-bulmaca/api/puzzle/[date].js` |
 | Editör API | `functions/oyun/gunluk-kare-bulmaca/api/admin/puzzles.js` |
 | SEO tarih yolu | `functions/oyun/gunluk-kare-bulmaca/[date].js` |
@@ -84,6 +87,6 @@ Cumhuriyet Worker'ında `/oyun/gunluk-kare-bulmaca/*` → bu projenin
 
 ## Sonraki adımlar
 - Cache API + CF cache-purge (anlık güncelleme; `wow` ADMIN.md deseni).
-- Arşiv listesi sayfası + `sitemap.xml`.
+- Arşiv sayfasına ay bazlı sayfalama / arama (çok sayıda bulmaca için).
 - Yazdırma / PDF görünümü, mobil Türkçe ekran klavyesi.
 - CSV içe aktarma (opsiyonel).

@@ -14,7 +14,10 @@ export const onRequestGet = async ({ env }) => {
     .bind(today)
     .all();
 
-  const urls = [`  <url><loc>${SITE}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>`];
+  const urls = [
+    `  <url><loc>${SITE}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>`,
+    `  <url><loc>${SITE}/arsiv</loc><changefreq>daily</changefreq><priority>0.8</priority></url>`
+  ];
   for (const r of results || []) {
     urls.push(`  <url><loc>${SITE}/${isoToUrlDate(r.puzzle_date)}</loc><lastmod>${r.puzzle_date}</lastmod></url>`);
   }

@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.mjs"],
       "port": 4599
+    },
+    {
+      "name": "bulmaca-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["wrangler", "pages", "dev", "public", "--port", "8788"],
+      "port": 8788
     }
   ]
 }
