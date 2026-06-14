@@ -1,0 +1,10 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "cumhuriyet-oyun-router",
+  "main": "router.js",
+  "compatibility_date": "2026-06-01",
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "cumhuriyet.lidyagames.com/*", "zone_name": "lidyagames.com" }
+  ]
+}

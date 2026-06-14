@@ -2,15 +2,16 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <!--SEO-START-->
 <title>Cumhuriyet — Günlük Kare Bulmaca</title>
-<meta name="description" content="Cumhuriyet'in günlük kare bulmacası. Her gün yeni bulmaca; mobil ve masaüstünde kolayca çözün." />
+<meta name="description" content="Cumhuriyet'in günlük kare bulmacası. Bugünün bulmacasını çözün ya da geçmiş günlerin bulmacalarına arşivden ulaşın." />
+<meta name="robots" content="index, follow, max-image-preview:large" />
 <link rel="canonical" href="https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/" />
 <meta property="og:type" content="website" />
 <meta property="og:locale" content="tr_TR" />
 <meta property="og:title" content="Cumhuriyet — Günlük Kare Bulmaca" />
-<meta property="og:description" content="Cumhuriyet'in günlük kare bulmacası. Her gün yeni bulmaca; mobil ve masaüstünde kolayca çözün." />
+<meta property="og:description" content="Cumhuriyet'in günlük kare bulmacası. Bugünün bulmacasını çözün ya da geçmiş günlerin bulmacalarına arşivden ulaşın." />
 <meta property="og:url" content="https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/" />
 <meta property="og:image" content="https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/og.svg" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -19,45 +20,40 @@
 </head>
 <body>
 <div class="wrap">
-  <header class="masthead">
-    <div class="brand">CUMHURİYET</div>
-    <div class="sub">Günlük Kare Bulmaca</div>
+  <header class="site-header">
+    <a class="logo-link" href="https://www.cumhuriyet.com.tr/" aria-label="Cumhuriyet ana sayfası">
+      <img class="logo" src="./cumhuriyet-logo.svg" width="249" height="56" alt="Cumhuriyet" />
+    </a>
+    <a class="header-link" href="./">
+      <span>Bugünü Çöz</span>
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
   </header>
-  <div class="dateline"><span id="dateText">—</span><span>No: <strong id="puzzleNo">—</strong></span></div>
 
-  <div class="demo-badge" id="demoBadge" hidden>Demo — çevrimdışı önizleme (gerçek bulmaca yüklenemedi)</div>
-  <div class="notice" id="notice" hidden></div>
-
-  <div class="cluebar">
-    <button id="prevClue" aria-label="Önceki">‹</button>
-    <div class="body"><div class="tag" id="clueTag">—</div><div class="txt" id="clueText">Yükleniyor…</div></div>
-    <button id="nextClue" aria-label="Sonraki">›</button>
+  <div class="page-title">
+    <h1>Günlük Kare Bulmaca</h1>
+    <p class="lead">Her gün yeni bir klasik Türkçe kare bulmaca. Bugünün bulmacasını çözün
+    ya da geçmiş günlere arşivden göz atın.</p>
   </div>
 
-  <div class="banner" id="banner">🎉 Tebrikler! Bulmacayı tamamladınız.</div>
-
-  <div class="layout">
-    <div class="board-col">
-      <div class="zoom"><span>Boyut</span><button id="zoomOut">−</button><button id="zoomIn">+</button></div>
-      <div class="board-scroll"><div class="board" id="board"></div></div>
-      <div class="controls">
-        <label class="toggle"><input type="checkbox" id="instant" checked> Anında kontrol</label>
-        <button class="ctl" id="btnCheckWord">Kelimeyi Kontrol</button>
-        <button class="ctl" id="btnReveal">Çöz / Göster</button>
-        <button class="ctl" id="btnClear">Temizle</button>
-      </div>
-    </div>
-    <div class="clues">
-      <div class="cluelist"><h3>Soldan Sağa</h3><ol id="acrossList"></ol></div>
-      <div class="cluelist"><h3>Yukarıdan Aşağıya</h3><ol id="downList"></ol></div>
-    </div>
+  <div class="section-h">Bugünün Bulmacası</div>
+  <div id="heroSlot">
+    <div class="hero-empty" id="heroLoading">Yükleniyor…</div>
   </div>
 
-  <nav class="archive"><a id="prevDay" href="#">‹ Önceki gün</a><a id="todayLink" href="./">Bugün</a><a href="./arsiv">Tüm bulmacalar</a><a id="nextDay" href="#">Sonraki gün ›</a></nav>
-  <div class="foot">Cumhuriyet · Günlük Kare Bulmaca</div>
+  <div class="section-h">Tüm Bulmacalar</div>
+  <div id="archiveList">
+    <p class="empty">Yükleniyor…</p>
+  </div>
+
+  <footer class="page-footer">
+    <span>Cumhuriyet · Günlük Kare Bulmaca</span>
+    <span><a href="https://lidyagames.com/" target="_blank" rel="noopener">lidyagames.com</a> altyapısı ile</span>
+  </footer>
 </div>
 
-<input class="hidden-input" id="hiddenInput" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
-<script type="module" src="./player.js"></script>
+<script type="module" src="./arsiv.js"></script>
 </body>
 </html>

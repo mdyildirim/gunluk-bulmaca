@@ -19,7 +19,7 @@ export const onRequestGet = async (context) => {
   if (!isUrlDate(urlDate)) return context.next(); // statik dosya veya 404
   const iso = urlDateToIso(urlDate);
 
-  const base = await fetch(new URL("/oyun/gunluk-kare-bulmaca/index.html", request.url));
+  const base = await fetch(new URL("/oyun/gunluk-kare-bulmaca/play.html", request.url));
   if (!base.ok) return context.next();
   let html = await base.text();
 

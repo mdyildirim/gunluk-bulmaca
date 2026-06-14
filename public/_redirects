@@ -1,0 +1,7 @@
+# Eski/kısa yol → kanonik yol. Kullanıcı "gunluk-bulmaca" yazarsa
+# "gunluk-kare-bulmaca"ya 301 ile yönlendir (aynı origin, host korunur).
+/oyun/gunluk-bulmaca      /oyun/gunluk-kare-bulmaca/        301
+/oyun/gunluk-bulmaca/*    /oyun/gunluk-kare-bulmaca/:splat  301
+
+# Arşiv kök sayfaya taşındı (kök = açılış/arşiv). Eski /arsiv → kök.
+/oyun/gunluk-kare-bulmaca/arsiv   /oyun/gunluk-kare-bulmaca/   301

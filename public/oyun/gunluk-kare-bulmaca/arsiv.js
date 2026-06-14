@@ -1,4 +1,4 @@
-import { buildPuzzle } from "./shared/engine.js";
+import { buildPuzzle, isoToUrlDate } from "./shared/engine.js";
 
 /* Mount tabanı — Cumhuriyet proxy'si bu yolu bu projeye yönlendirir. */
 const BASE = "/oyun/gunluk-kare-bulmaca";
@@ -65,10 +65,10 @@ function renderHero(raw) {
     `<div class="hero-sub">No: ${P.no || "—"} · ${P.cols}×${P.rows}</div>` +
     `<span class="hero-cta">Bugünü Çöz →</span>`;
 
-  // Tüm kart bugünün gerçek URL'sine gider (kök = bugün).
+  // Kök artık arşiv/açılış sayfası; kart bugünün oynanabilir tarih URL'sine gider.
   const card = document.createElement("a");
   card.className = "hero";
-  card.href = `${BASE}/`;
+  card.href = `${BASE}/${isoToUrlDate(P.date)}`;
   const grid = document.createElement("div");
   grid.className = "hero-grid";
   grid.appendChild(board);
