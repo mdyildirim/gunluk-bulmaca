@@ -41,6 +41,30 @@ export default {
     const headers = new Headers(request.headers);
     headers.set("Host", origin);
 
+    // Gerçek ziyaretçi IP'sini origin'e ilet. Worker -> Pages alt isteğinde
+    // Cloudflare, iç isteğin CF-Connecting-IP'sini bir Cloudflare veri-merkezi
+    // IP'siyle (örn. 2a06:98c0::/29) DEĞİŞTİRİR; bu yüzden origin tek başına
+    // ziyaretçiyi göremez. Burada görebildiğimiz en iyi istemci IP'sini çözüp
+    // güvenilir başlıklarla iletiyoruz. Yasal bir talep için ham zincir de
+    // (X-Forwarded-For) korunur. (Pages tarafı: functions/_lib/client-ip.ts)
+    //
+    // Önce istemcinin gönderdiği sahte başlıkları temizle ki proxy yolundan
+    // gelen biri kimliğimizi taklit edemesin.
+    for (const h of ["X-Cumhuriyet-Router", "X-Real-Client-IP", "X-Edge-Connecting-IP", "X-Forwarded-For-Chain"]) {
+      headers.delete(h);
+    }
+
+    // Cumhuriyet'in proxy'si ziyaretçiyi iletiyorsa X-Forwarded-For'un en
+    // solundadır; yoksa edge'imize bağlanan istemci = CF-Connecting-IP.
+    const inboundXff = request.headers.get("X-Forwarded-For");
+    const edgeIp = request.headers.get("CF-Connecting-IP") || "";
+    const clientIp = (inboundXff ? inboundXff.split(",")[0].trim() : "") || edgeIp;
+
+    headers.set("X-Cumhuriyet-Router", "1");
+    if (clientIp) headers.set("X-Real-Client-IP", clientIp);
+    if (edgeIp) headers.set("X-Edge-Connecting-IP", edgeIp);
+    if (inboundXff) headers.set("X-Forwarded-For-Chain", inboundXff);
+
     return fetch(url.toString(), {
       method: request.method,
       headers,
