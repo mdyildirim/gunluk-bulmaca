@@ -43,6 +43,16 @@ subdomain such as `bulmaca.lidyagames.com` can sit in front if preferred).
 wrangler pages secret put ADMIN_PASSWORD --project-name cumhuriyet-gunluk-bulmaca
 ```
 
+- `GEMINI_API_KEY` (optional) — enables **"Görselden içe aktar"** in the editor:
+  `POST /api/admin/import` sends an uploaded puzzle photo to `gemini-3.5-flash`,
+  which returns a grid + clue list that pre-fills the editor (the editor then
+  validates/saves as usual). Endpoint fails closed (503) if the key is unset, so
+  the rest of the editor works without it. Set locally in `.dev.vars`; in prod:
+
+```bash
+wrangler pages secret put GEMINI_API_KEY --project-name cumhuriyet-gunluk-bulmaca
+```
+
 The admin surface must **not** be exposed through the Cumhuriyet proxy — keep
 `/api/admin/*` reachable only on the `pages.dev` origin.
 

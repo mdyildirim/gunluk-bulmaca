@@ -3,7 +3,8 @@ import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 
 const ROOT = join(new URL(".", import.meta.url).pathname, "public");
-const TYPES = { ".html":"text/html", ".js":"text/javascript", ".css":"text/css", ".json":"application/json" };
+const TYPES = { ".html":"text/html", ".js":"text/javascript", ".css":"text/css", ".json":"application/json",
+  ".jpeg":"image/jpeg", ".jpg":"image/jpeg", ".png":"image/png", ".webp":"image/webp", ".gif":"image/gif", ".svg":"image/svg+xml" };
 
 createServer(async (req, res) => {
   try {
