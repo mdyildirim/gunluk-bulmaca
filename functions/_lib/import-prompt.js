@@ -19,35 +19,17 @@
 // "her satır eşit uzunlukta" denir (hizalama daha sık kayar).
 export function gridPrompt(rows, cols) {
   const dims = (rows && cols)
-    ? `Output ONLY a JSON array of ${rows} strings (top→bottom), each EXACTLY ${cols} characters long — the grid is ${cols} columns wide × ${rows} rows tall. Never output more or fewer than ${rows} rows, and never more or fewer than ${cols} characters in a row.`
-    : `Output ONLY a JSON array of strings, one per row top→bottom. EVERY string must be the SAME length (exactly one character per cell).`;
-  return `Photo of a SOLVED Turkish arrow crossword ("kare bulmaca"). Reconstruct the physical grid cell by cell.
+    ? `Return ${rows} strings, each exactly ${cols} characters.`
+    : `Return one string per row; all strings must have the same length.`;
+  return `Extract the solved crossword grid from the image.
 
 ${dims}
 
-This is NOT a word-solving task. Do not infer an answer from clue text or from Turkish vocabulary. Copy only the large, bold solution letters that are visibly printed in answer cells.
+For each physical cell, output:
+- the uppercase Turkish letter if the cell contains exactly one large answer letter
+- "#" for anything else: clue text, arrows, photo, black/empty cells
 
-Classify every physical cell independently:
-- ANSWER CELL: contains exactly one large, bold, centered solution letter. Output that uppercase Turkish letter (A-Z plus Ç Ğ İ I Ö Ş Ü).
-- NON-ANSWER CELL: contains small clue text, one or more arrowheads, a photo, black fill, or no large centered letter. Output '#'.
-
-Important: clue cells often sit between answer cells. If a vertical or horizontal answer would visually pass through a clue cell, STOP there and output '#'. Never continue a word through a clue-text cell, photo cell, or arrow-only cell. Never repeat neighboring letters to make a row/column look like a valid word.
-
-Arrow/dot ambiguity:
-- Black triangles, arrowheads, caret marks, and small direction marks are ARROWS, not Turkish diacritics.
-- Ignore all arrowheads near borders, above/below a cell, or inside clue cells when deciding letters.
-- Turkish has two capital I letters: dotless 'I' and dotted 'İ'. Output 'İ' only when a clear round dot is printed directly on top of the large vertical letter stroke inside the same answer cell. If the large letter is a plain vertical stroke with no dot attached, output dotless 'I'.
-- For Ç Ş Ğ Ü Ö, include the diacritic only when it is attached to the large letter glyph itself; never borrow marks from arrows or neighboring clue text.
-
-Row construction rules:
-- One output character per physical cell, left→right.
-- Use '#' for every clue cell, arrow-only cell, photo cell, and black/non-answer cell.
-- If a visible large letter is uncertain, choose the closest glyph from the image, not a dictionary answer.
-- If a row has fewer answer cells than its width, fill the leftover cells with '#'. NEVER repeat or invent a letter just to fill a row to the right length.
-
-Across answers read left→right and down answers read top→bottom, so every real crossing letter must agree in both directions. Count cells carefully across the photo block.
-
-Output ONLY the JSON array — no explanation, no reasoning, no other text. Start your answer with '[' and end with ']'.`;
+Output only a JSON array of strings.`;
 }
 
 // --- 2A) Tercih edilen yol: slot kataloğuna ipucu bağlama --------------------
@@ -56,55 +38,34 @@ Output ONLY the JSON array — no explanation, no reasoning, no other text. Star
 // eşleştirir.
 export function slotCluesPrompt(slots) {
   const catalog = (Array.isArray(slots) ? slots : [])
-    .map(s => `${s.id}: ${s.dir === "down" ? "DOWN" : "ACROSS"} ${s.answer} (${String(s.answer || "").length})`)
+    .map(s => {
+      const pos = s.row && s.col ? ` r${s.row}c${s.col}` : "";
+      return `${s.id} ${s.dir === "down" ? "DOWN" : "ACROSS"} ${s.answer}${pos}`;
+    })
     .join("\n");
-  return `This is a photo of a SOLVED Turkish arrow-style crossword ("kare bulmaca" / İsveç bulmaca).
+  return `Extract clue-slot pairs from the image.
 
-The solved answer grid has ALREADY been extracted. Do NOT solve clues from general knowledge and do NOT invent answers. Your job is only to read the printed clue text in the photo and assign each clue to one of the known answer slots below by following the clue arrow visually.
-
-KNOWN ANSWER SLOTS FROM THE GRID:
+Slots:
 ${catalog}
 
-Rules:
-- Every printed clue is inside a clue cell; one cell can contain two separate clues.
-- If a clue cell contains two stacked clue texts, output two separate [SLOT_ID, CLUE] pairs. Match the upper clue to the arrow closest to the upper text, and the lower clue to the arrow closest to the lower text.
-- Follow the arrow from the clue cell to the answer run, then choose the matching SLOT ID from the catalog.
-- Arrowheads are direction markers only. Do not treat arrowheads as dots, letters, or diacritics.
-- Use ONLY SLOT IDs from the catalog. Never output an answer word.
-- If you can read a clue but cannot confidently attach it to a catalog slot, use "?" as the slot id.
-- Do not choose a slot just because the clue definition semantically matches an answer. The answer must be the visual target of the arrow.
-- Preserve clue text as printed. Rejoin words split across lines by a hyphen and collapse line breaks to single spaces. For a photo clue, identify who/what it shows.
+Follow each clue arrow to one slot. Output one [SLOT_ID, CLUE] per clue.
+Use only listed slot IDs. Use "?" only when the arrow target is unreadable.
+Preserve printed clue text; collapse line breaks.
 
-Output ONLY a JSON array where each item is [SLOT_ID, CLUE]. Example:
-[["A9","Bilgisizlik"],["D1","İnce, yassı elmas"]]
-
-Output no explanation, no reasoning, no other text. Start with '[' and end with ']'.`;
+Output only JSON, like [["A9","Bilgisizlik"],["D1","İnce, yassı elmas"]].`;
 }
 
 // --- 2B) Yedek yol: grid/slot yoksa eski serbest cevap istemi ----------------
 // Bu yol daha riskli: model bazen cevabı görselden okumak yerine ipucundan çözer.
 // Admin mümkün olduğunca slotCluesPrompt kullanır.
-export const wordsPrompt = `This is a photo of a SOLVED Turkish arrow-style crossword ("kare bulmaca" / İsveç bulmaca).
+export const wordsPrompt = `Extract all clue-answer pairs from this solved Turkish arrow crossword image.
 
-HOW THE PUZZLE IS BUILT — read this carefully before answering:
-- There is NO separate numbered clue list. Each clue is PRINTED INSIDE a small grid cell (a "clue cell").
-- A single clue cell can hold ONE clue or TWO clues (an upper clue and a lower clue stacked in the same cell). Two clues in a cell = two separate answers.
-- Every clue has an ARROW that shows where ITS answer begins and which way it runs:
-  • arrow pointing right (→) → the answer reads LEFT→RIGHT (across), starting in the cell the arrow points into;
-  • arrow pointing down (↓) → the answer reads TOP→BOTTOM (down);
-  • a bent / elbow arrow first steps one cell over and then turns — use its FINAL direction as the answer's direction.
-  A clue cell with two clues usually sends one arrow right and one arrow down.
-- The answer is the run of filled-in letters in the arrow's direction, continuing until the next clue cell, a black square, or the grid edge.
-- A photo printed inside the grid is itself a clue; its arrow points to the answer.
+For each clue, follow its arrow and return [ANSWER, DIR, CLUE].
+- ANSWER: visible answer letters only
+- DIR: "a" for across, "d" for down
+- CLUE: printed clue text
 
-List EVERY clue→answer pair (don't merge stacked clues, don't skip any). Output ONLY a JSON array where each item is a 3-element array [ANSWER, DIR, CLUE]:
-- ANSWER = the visible filled-in large letters of that answer, UPPERCASE Turkish (A-Z plus Ç Ğ İ I Ö Ş Ü), no spaces or punctuation. Do NOT solve the clue from general knowledge. If the answer letters are not visually readable, use an empty string instead of guessing.
-- DIR = "a" if the answer reads left→right, "d" if it reads top→bottom.
-- CLUE = the clue text exactly as printed. Rejoin words split across lines by a hyphen into one (e.g. "Deniz taşı-\\nmacılığı" → "Deniz taşımacılığı") and collapse line breaks to single spaces; otherwise keep the wording verbatim. For a photo clue, identify who/what it shows (e.g. "Fotoğraftaki kişi (…)").
-
-Arrowheads and small direction marks are arrows, not dots or letters. For Turkish 'I' vs 'İ', copy the large answer letter as printed; do not use nearby arrows as dots.
-
-Output ONLY the JSON array — no explanation, no reasoning, no other text. Start your answer with '[' and end with ']'.`;
+Output only a JSON array.`;
 
 // --- Ayrıştırıcılar ---------------------------------------------------------
 const stripFences = s => {
@@ -151,8 +112,14 @@ export function slotPairsToClues(arr, slots) {
   return (Array.isArray(arr) ? arr : [])
     .map(item => {
       let slot, clue;
-      if (Array.isArray(item)) [slot, clue] = item;
-      else if (item && typeof item === "object") ({ slot, clue } = item);
+      if (Array.isArray(item)) {
+        slot = item[0];
+        clue = item.length >= 3 ? item[item.length - 1] : item[1];
+      }
+      else if (item && typeof item === "object") {
+        slot = item.slot ?? item.slot_id ?? item.slotId ?? item.id ?? item.SLOT_ID;
+        clue = item.clue ?? item.hint ?? item.ipucu ?? item.text ?? item.CLUE;
+      }
       else return null;
       const rawSlot = cleanSlotId(slot);
       const s = byId.get(rawSlot);

@@ -48,8 +48,8 @@ const PROVIDERS = {
     defaultGridThinking: "high",
     defaultClueThinking: "high",
     thinkingLevels: new Set(["low", "medium", "high", "xhigh"]),
-    priceInPerM: null,
-    priceOutPerM: null
+    priceInPerM: 5,
+    priceOutPerM: 30
   }
 };
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -94,7 +94,9 @@ function cleanSlots(slots) {
     .map(s => ({
       id: String(s && s.id || "").trim().toUpperCase(),
       dir: s && s.dir === "down" ? "down" : "across",
-      answer: String(s && s.answer || "").trim().toLocaleUpperCase("tr-TR")
+      answer: String(s && s.answer || "").trim().toLocaleUpperCase("tr-TR"),
+      row: Number.isFinite(Number(s && s.row)) ? Math.trunc(Number(s.row)) : null,
+      col: Number.isFinite(Number(s && s.col)) ? Math.trunc(Number(s.col)) : null
     }))
     .filter(s => /^[AD]\d+$/.test(s.id) && s.answer);
 }
@@ -309,11 +311,32 @@ async function openaiArray(key, prompt, mimeType, imageBase64, thinking, options
   return { array: extractArray(text), usage };
 }
 
+function slotBindingLooksFailed(words, slots) {
+  const total = Array.isArray(words) ? words.length : 0;
+  if (!slots || !slots.length || total < Math.min(8, slots.length)) return false;
+  const matched = words.filter(w => w && w.slot && w.slot !== "?" && !w.unmatchedSlot && w.answer).length;
+  const unknown = words.filter(w => w && (w.unmatchedSlot || !w.answer || w.slot === "?")).length;
+  return matched / total < 0.25 && unknown / total > 0.6;
+}
+
+function answerExtractionLooksFailed(words, slots) {
+  const total = Array.isArray(words) ? words.filter(w => w && w.answer && w.clue).length : 0;
+  return !!(slots && slots.length >= 8 && total < Math.max(6, Math.floor(slots.length * 0.35)));
+}
+
 async function openaiClues(key, slots, mimeType, imageBase64, thinking, options = {}) {
   const opts = { ...options, stream: true };
   if (slots && slots.length) {
-    const r = await openaiArray(key, slotCluesPrompt(slots), mimeType, imageBase64, thinking, opts);
-    return { words: slotPairsToClues(r.array, slots), usage: r.usage };
+    const direct = await openaiArray(key, wordsPrompt, mimeType, imageBase64, thinking, opts);
+    const directWords = triplesToClues(direct.array);
+    if (answerExtractionLooksFailed(directWords, slots)) {
+      const slot = await openaiArray(key, slotCluesPrompt(slots), mimeType, imageBase64, thinking, opts);
+      const slotWords = slotPairsToClues(slot.array, slots);
+      if (!slotBindingLooksFailed(slotWords, slots))
+        return { words: slotWords, usage: sumUsage(direct.usage, slot.usage), fallback: "slot" };
+      return { words: directWords, usage: sumUsage(direct.usage, slot.usage), fallback: "answer-dir" };
+    }
+    return { words: directWords, usage: direct.usage };
   }
   const r = await openaiArray(key, wordsPrompt, mimeType, imageBase64, thinking, opts);
   return { words: triplesToClues(r.array), usage: r.usage };
@@ -395,13 +418,14 @@ function assembleResult(provider, wRes, gRes, withGrid, meta = {}) {
     return { ok: false, error: "İpuçları okunamadı.",
       detail: String(wRes.reason && wRes.reason.message || wRes.reason).slice(0, 300), ...base };
   const words = wRes.value.words || triplesToClues(wRes.value.array);
+  const fallback = wRes.value && wRes.value.fallback;
   let grid = null, gridError = null;
   if (withGrid) {
     if (gRes.status === "fulfilled" && gRes.value && Array.isArray(gRes.value.array))
       grid = gRes.value.array.map(r => String(r));
     else gridError = String(gRes.reason && gRes.reason.message || gRes.reason || "Izgara okunamadı.").slice(0, 200);
   }
-  return { ok: true, ...base, words, grid, gridError };
+  return { ok: true, ...base, words, grid, gridError, ...(fallback ? { fallback } : {}) };
 }
 
 export const onRequestPost = async ({ env, request, waitUntil }) => {

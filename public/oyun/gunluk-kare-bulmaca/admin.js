@@ -28,7 +28,9 @@ function importSlotsForGrid(grid){
   return slotCatalogFromSolution(grid).map(s => ({
     id: s.id,
     dir: s.dir,
-    answer: s.answer
+    answer: s.answer,
+    row: s.row,
+    col: s.col
   }));
 }
 function renderPreview(){
@@ -289,6 +291,7 @@ function renderImportDebug(data,gridUsed){
   const L=[];
   if(data.provider||data.model) L.push(`model: ${data.provider||"-"} · ${data.model||"-"}`);
   if(data.thinking) L.push(`thinking: grid=${data.thinking.grid||"-"} · ipucu=${data.thinking.clues||"-"}`);
+  if(data.fallback) L.push(`fallback: ${data.fallback}`);
   // 1) İPUÇ-SLOT EŞLEŞMELERİ
   const ws=data.words||[];
   L.push(`══ 1) İPUÇ-SLOT EŞLEŞMELERİ — ${ws.length} adet (slot·cevap·yön·ipucu) ══`);

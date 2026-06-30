@@ -197,6 +197,8 @@ export function slotCatalogFromSolution(solution) {
     id: slotIdForWord(w),
     num: w.num,
     dir: w.dir,
+    row: (w.cells[0] && w.cells[0].r + 1) || null,
+    col: (w.cells[0] && w.cells[0].c + 1) || null,
     answer: w.cells.map(({ r, c }) => sol[r][c]).join("")
   }));
 }
