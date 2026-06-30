@@ -21,19 +21,31 @@ export function gridPrompt(rows, cols) {
   const dims = (rows && cols)
     ? `Output ONLY a JSON array of ${rows} strings (top→bottom), each EXACTLY ${cols} characters long — the grid is ${cols} columns wide × ${rows} rows tall. Never output more or fewer than ${rows} rows, and never more or fewer than ${cols} characters in a row.`
     : `Output ONLY a JSON array of strings, one per row top→bottom. EVERY string must be the SAME length (exactly one character per cell).`;
-  return `Photo of a SOLVED Turkish arrow crossword ("kare bulmaca"). Reconstruct the filled grid, cell by cell.
+  return `Photo of a SOLVED Turkish arrow crossword ("kare bulmaca"). Reconstruct the physical grid cell by cell.
 
 ${dims}
 
-This is a Turkish arrow-style crossword: some cells hold the printed clues (one or two clue texts plus a direction arrow) instead of a letter. Each character of your output is either:
-- one UPPERCASE Turkish letter (A-Z plus Ç Ğ İ I Ö Ş Ü) for an answer cell (a cell filled with a solution letter), or
-- '#' for any non-answer cell — a clue cell (printed clue text + arrows), the photo block, or a black square. These never hold a puzzle letter.
+This is NOT a word-solving task. Do not infer an answer from clue text or from Turkish vocabulary. Copy only the large, bold solution letters that are visibly printed in answer cells.
 
-If a row has fewer answer cells than its width, fill the leftover cells with '#'. NEVER repeat or invent a letter just to fill a row to the right length.
+Classify every physical cell independently:
+- ANSWER CELL: contains exactly one large, bold, centered solution letter. Output that uppercase Turkish letter (A-Z plus Ç Ğ İ I Ö Ş Ü).
+- NON-ANSWER CELL: contains small clue text, one or more arrowheads, a photo, black fill, or no large centered letter. Output '#'.
 
-Turkish has two capital I's — dotless 'I' and dotted 'İ'. Keep them distinct: a dot counts only if it clearly sits on the letter body; arrows or hint marks near a cell are NOT dots.
+Important: clue cells often sit between answer cells. If a vertical or horizontal answer would visually pass through a clue cell, STOP there and output '#'. Never continue a word through a clue-text cell, photo cell, or arrow-only cell. Never repeat neighboring letters to make a row/column look like a valid word.
 
-Across answers read left→right and down answers read top→bottom, so every crossing letter must agree in both directions. Count cells carefully across the photo block.
+Arrow/dot ambiguity:
+- Black triangles, arrowheads, caret marks, and small direction marks are ARROWS, not Turkish diacritics.
+- Ignore all arrowheads near borders, above/below a cell, or inside clue cells when deciding letters.
+- Turkish has two capital I letters: dotless 'I' and dotted 'İ'. Output 'İ' only when a clear round dot is printed directly on top of the large vertical letter stroke inside the same answer cell. If the large letter is a plain vertical stroke with no dot attached, output dotless 'I'.
+- For Ç Ş Ğ Ü Ö, include the diacritic only when it is attached to the large letter glyph itself; never borrow marks from arrows or neighboring clue text.
+
+Row construction rules:
+- One output character per physical cell, left→right.
+- Use '#' for every clue cell, arrow-only cell, photo cell, and black/non-answer cell.
+- If a visible large letter is uncertain, choose the closest glyph from the image, not a dictionary answer.
+- If a row has fewer answer cells than its width, fill the leftover cells with '#'. NEVER repeat or invent a letter just to fill a row to the right length.
+
+Across answers read left→right and down answers read top→bottom, so every real crossing letter must agree in both directions. Count cells carefully across the photo block.
 
 Output ONLY the JSON array — no explanation, no reasoning, no other text. Start your answer with '[' and end with ']'.`;
 }
@@ -55,7 +67,9 @@ ${catalog}
 
 Rules:
 - Every printed clue is inside a clue cell; one cell can contain two separate clues.
+- If a clue cell contains two stacked clue texts, output two separate [SLOT_ID, CLUE] pairs. Match the upper clue to the arrow closest to the upper text, and the lower clue to the arrow closest to the lower text.
 - Follow the arrow from the clue cell to the answer run, then choose the matching SLOT ID from the catalog.
+- Arrowheads are direction markers only. Do not treat arrowheads as dots, letters, or diacritics.
 - Use ONLY SLOT IDs from the catalog. Never output an answer word.
 - If you can read a clue but cannot confidently attach it to a catalog slot, use "?" as the slot id.
 - Do not choose a slot just because the clue definition semantically matches an answer. The answer must be the visual target of the arrow.
@@ -84,9 +98,11 @@ HOW THE PUZZLE IS BUILT — read this carefully before answering:
 - A photo printed inside the grid is itself a clue; its arrow points to the answer.
 
 List EVERY clue→answer pair (don't merge stacked clues, don't skip any). Output ONLY a JSON array where each item is a 3-element array [ANSWER, DIR, CLUE]:
-- ANSWER = the filled-in letters of that answer, UPPERCASE Turkish (A-Z plus Ç Ğ İ I Ö Ş Ü), no spaces or punctuation.
+- ANSWER = the visible filled-in large letters of that answer, UPPERCASE Turkish (A-Z plus Ç Ğ İ I Ö Ş Ü), no spaces or punctuation. Do NOT solve the clue from general knowledge. If the answer letters are not visually readable, use an empty string instead of guessing.
 - DIR = "a" if the answer reads left→right, "d" if it reads top→bottom.
 - CLUE = the clue text exactly as printed. Rejoin words split across lines by a hyphen into one (e.g. "Deniz taşı-\\nmacılığı" → "Deniz taşımacılığı") and collapse line breaks to single spaces; otherwise keep the wording verbatim. For a photo clue, identify who/what it shows (e.g. "Fotoğraftaki kişi (…)").
+
+Arrowheads and small direction marks are arrows, not dots or letters. For Turkish 'I' vs 'İ', copy the large answer letter as printed; do not use nearby arrows as dots.
 
 Output ONLY the JSON array — no explanation, no reasoning, no other text. Start your answer with '[' and end with ']'.`;
 

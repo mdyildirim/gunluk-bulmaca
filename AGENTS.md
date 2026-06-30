@@ -53,6 +53,15 @@ wrangler pages secret put ADMIN_PASSWORD --project-name cumhuriyet-gunluk-bulmac
 wrangler pages secret put GEMINI_API_KEY --project-name cumhuriyet-gunluk-bulmaca
 ```
 
+- `OPENAI_API_KEY` (optional) — enables the OpenAI provider in the same editor
+  import flow. The admin UI sends the solved puzzle photo to `gpt-5.5` through
+  the Responses API, using the same grid-slot reconciliation as Gemini. Set
+  locally in `.dev.vars`; in prod:
+
+```bash
+wrangler pages secret put OPENAI_API_KEY --project-name cumhuriyet-gunluk-bulmaca
+```
+
 The admin surface must **not** be exposed through the Cumhuriyet proxy — keep
 `/api/admin/*` reachable only on the `pages.dev` origin.
 
