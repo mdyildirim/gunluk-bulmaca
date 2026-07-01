@@ -11,6 +11,8 @@ function isAdminPath(p) {
   return (
     p === `${BASE}/admin.html` ||
     p === `${BASE}/admin` ||
+    p === `${BASE}/admin-costs.html` ||
+    p === `${BASE}/admin-costs` ||
     p.startsWith(`${BASE}/api/admin/`)
   );
 }

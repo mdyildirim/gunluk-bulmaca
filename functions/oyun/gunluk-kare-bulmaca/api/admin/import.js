@@ -11,6 +11,11 @@ import {
   triplesToClues,
   slotPairsToClues
 } from "../../../../_lib/import-prompt.js";
+import {
+  chargeFromProviderCost,
+  ensureImportCostStore,
+  recordImportCost
+} from "../../../../_lib/import-costs.js";
 
 // Görselden bulmaca çıkarımı — sağlayıcı başına İKİ görsel çağrısı.
 //   • CLUE çağrısı → ipucu metnini gridden türetilen slotlara bağlar
@@ -39,6 +44,7 @@ const PROVIDERS = {
     defaultClueThinking: "low",
     thinkingLevels: new Set(["minimal", "low", "medium", "high"]),
     priceInPerM: 1.5,
+    priceCachedInPerM: 1.5,
     priceOutPerM: 9
   },
   openai: {
@@ -48,6 +54,7 @@ const PROVIDERS = {
     defaultClueThinking: "high",
     thinkingLevels: new Set(["low", "medium", "high", "xhigh"]),
     priceInPerM: 5,
+    priceCachedInPerM: 0.5,
     priceOutPerM: 30
   }
 };
@@ -128,12 +135,14 @@ const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gi
 
 const sumUsage = (a, b) => ({
   promptTokenCount: (a.promptTokenCount || 0) + (b.promptTokenCount || 0),
+  cachedPromptTokenCount: (a.cachedPromptTokenCount || 0) + (b.cachedPromptTokenCount || 0),
   candidatesTokenCount: (a.candidatesTokenCount || 0) + (b.candidatesTokenCount || 0),
   thoughtsTokenCount: (a.thoughtsTokenCount || 0) + (b.thoughtsTokenCount || 0),
   totalTokenCount: (a.totalTokenCount || 0) + (b.totalTokenCount || 0)
 });
 const costUsd = (u, cfg) => (!cfg || cfg.priceInPerM == null || cfg.priceOutPerM == null) ? null
-  : ((u.promptTokenCount || 0) / 1e6) * cfg.priceInPerM
+  : ((Math.max(0, (u.promptTokenCount || 0) - (u.cachedPromptTokenCount || 0))) / 1e6) * cfg.priceInPerM
+    + (((u.cachedPromptTokenCount || 0) / 1e6) * (cfg.priceCachedInPerM ?? cfg.priceInPerM))
     + (((u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0)) / 1e6) * cfg.priceOutPerM;
 
 const geminiBodyFor = (prompt, mimeType, imageBase64, thinking) => JSON.stringify({
@@ -271,9 +280,11 @@ function openaiUsage(u) {
   const output = u && Number(u.output_tokens || 0);
   const reasoning = u && u.output_tokens_details && Number(u.output_tokens_details.reasoning_tokens || 0);
   const input = u && Number(u.input_tokens || 0);
+  const cached = u && u.input_tokens_details && Number(u.input_tokens_details.cached_tokens || 0);
   const total = u && Number(u.total_tokens || (input + output));
   return {
     promptTokenCount: input || 0,
+    cachedPromptTokenCount: cached || 0,
     candidatesTokenCount: Math.max(0, (output || 0) - (reasoning || 0)),
     thoughtsTokenCount: reasoning || 0,
     totalTokenCount: total || 0
@@ -458,6 +469,28 @@ function readGrid(provider, key, prompt, mimeType, imageBase64, thinking, onProg
     : streamGrid(key, prompt, mimeType, imageBase64, thinking, onProgress);
 }
 
+async function recordResultCost(env, result) {
+  if (!result || !result.totalCost || !result.totalCost.usd) return result;
+  try {
+    await recordImportCost(env, {
+      provider: result.provider,
+      model: result.model,
+      ok: !!result.ok,
+      totalCostUsd: result.totalCost.usd
+    });
+    return { ...result, costRecorded: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: "Maliyet kaydı oluşturulamadı.",
+      detail: String(e && e.message || e).slice(0, 200),
+      provider: result.provider,
+      model: result.model,
+      totalCost: result.totalCost
+    };
+  }
+}
+
 function startHeartbeat(writeLine, base, ms = 10000) {
   const t0 = Date.now();
   let stop = false, id = null;
@@ -508,11 +541,8 @@ function assembleResult(provider, wRes, gRes, withGrid, meta = {}) {
   const gUsage = withGrid ? usageOf(gRes) : null;
   const total = sumUsage(wUsage, gUsage || {});
   const usage = { words: wUsage, grid: gUsage, total };
-  const cost = {
-    usd: costUsd(total, cfg), words: costUsd(wUsage, cfg), grid: gUsage ? costUsd(gUsage, cfg) : 0,
-    rateInPerM: cfg.priceInPerM, rateOutPerM: cfg.priceOutPerM
-  };
-  const base = { provider, model: cfg.model, usage, cost, ...meta };
+  const totalCost = chargeFromProviderCost(costUsd(total, cfg));
+  const base = { provider, model: cfg.model, usage, totalCost: { usd: totalCost.totalCostUsd, currency: totalCost.currency }, ...meta };
   if (wRes.status === "rejected")
     return { ok: false, error: "İpuçları okunamadı.",
       detail: String(wRes.reason && wRes.reason.message || wRes.reason).slice(0, 300), ...base };
@@ -545,6 +575,15 @@ export const onRequestPost = async ({ env, request, waitUntil }) => {
     return json({ ok: false, error: "Desteklenmeyen görsel türü (JPEG/PNG/WebP/GIF)." }, 400);
   if (imageBase64.length > MAX_IMAGE_BYTES * 1.4)
     return json({ ok: false, error: "Görsel çok büyük (≈8 MB sınırı)." }, 413);
+  try {
+    await ensureImportCostStore(env);
+  } catch (e) {
+    return json({
+      ok: false,
+      error: "Maliyet kaydı için DB hazır değil.",
+      detail: String(e && e.message || e).slice(0, 200)
+    }, 503, { "cache-control": "no-store" });
+  }
 
   const withGrid = true;
   const toDim = v => { const n = Math.trunc(Number(v)); return n >= 1 && n <= 50 ? n : null; };
@@ -569,7 +608,8 @@ export const onRequestPost = async ({ env, request, waitUntil }) => {
             stream: true,
             onProgress: (sec, think) => writeLine({ t: "progress", phase: "words", sec, think, count: requestSlots.length, provider })
           })]).then(a => a[0]);
-          await writeLine({ t: "result", ...assembleResult(provider, wRes, { status: "fulfilled", value: null }, false, meta) });
+          const result = await recordResultCost(env, assembleResult(provider, wRes, { status: "fulfilled", value: null }, false, meta));
+          await writeLine({ t: "result", ...result });
         } catch (e) {
           await writeLine({ t: "error", error: String(e && e.message || e).slice(0, 300) });
         } finally {
@@ -584,7 +624,7 @@ export const onRequestPost = async ({ env, request, waitUntil }) => {
       });
     }
     const wRes = await Promise.allSettled([readClues(provider, key, requestSlots, mimeType, imageBase64, clueThinking)]).then(a => a[0]);
-    const result = assembleResult(provider, wRes, { status: "fulfilled", value: null }, false, meta);
+    const result = await recordResultCost(env, assembleResult(provider, wRes, { status: "fulfilled", value: null }, false, meta));
     return json(result, result.ok ? 200 : 502, { "cache-control": "no-store" });
   }
 
@@ -631,7 +671,8 @@ export const onRequestPost = async ({ env, request, waitUntil }) => {
       log("ikisi de bitti words=" + wRes.status, "grid=" + gRes.status,
         gRes.status === "rejected" ? "gridErr=" + String(gRes.reason && gRes.reason.message).slice(0, 120)
           : "gridRows=" + (gRes.value && gRes.value.array && gRes.value.array.length));
-      await writeLine({ t: "result", ...assembleResult(provider, wRes, gRes, true, meta) });
+      const result = await recordResultCost(env, assembleResult(provider, wRes, gRes, true, meta));
+      await writeLine({ t: "result", ...result });
       log("result yazildi");
     } catch (e) {
       log("PUMP HATA", String(e && e.message || e));

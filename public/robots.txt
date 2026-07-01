@@ -4,6 +4,9 @@
 # (ayrıntı: AGENTS.md).
 User-agent: *
 Disallow: /oyun/gunluk-kare-bulmaca/admin.html
+Disallow: /oyun/gunluk-kare-bulmaca/admin
+Disallow: /oyun/gunluk-kare-bulmaca/admin-costs.html
+Disallow: /oyun/gunluk-kare-bulmaca/admin-costs
 Disallow: /oyun/gunluk-kare-bulmaca/api/
 
 Sitemap: https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/sitemap.xml

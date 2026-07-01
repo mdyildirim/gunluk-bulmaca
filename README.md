@@ -13,6 +13,7 @@ cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/            → bugünün bulmacası
 cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/13-06-2026  → o güne ait (arşiv/paylaşım)
 cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/arsiv      → genel sayfa: bugünün önizlemesi + tüm bulmacalar
 cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/admin.html  → editör (Basic auth)
+cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/admin-costs.html → LLM maliyetleri (Basic auth)
 ```
 
 URL'de tarih Türkçe biçimde (`GG-AA-YYYY`, ör. `13-06-2026`); dahili/DB biçimi
@@ -26,12 +27,14 @@ kenarda yapılır. Tarihli sayfalar sunucuda güne özel SEO etiketleri
 |---|---|
 | Oyuncu | `public/oyun/gunluk-kare-bulmaca/{index.html,player.js,styles.css}` |
 | Editör | `public/oyun/gunluk-kare-bulmaca/{admin.html,admin.js}` (Basic auth) |
+| LLM maliyet raporu | `public/oyun/gunluk-kare-bulmaca/{admin-costs.html,admin-costs.js}` (Basic auth) |
 | Motor (numaralama, kelime tespiti, doğrulama) | `public/oyun/gunluk-kare-bulmaca/shared/engine.js` — tarayıcı **ve** Functions aynı dosyayı kullanır |
 | Genel/arşiv sayfası | `public/oyun/gunluk-kare-bulmaca/{arsiv.html,arsiv.js}` |
 | Bugünün API'si | `functions/oyun/gunluk-kare-bulmaca/api/today.js` |
 | Liste API'si (arşiv künyesi) | `functions/oyun/gunluk-kare-bulmaca/api/list.js` |
 | Tarihli API | `functions/oyun/gunluk-kare-bulmaca/api/puzzle/[date].js` |
 | Editör API | `functions/oyun/gunluk-kare-bulmaca/api/admin/puzzles.js` |
+| LLM içe aktarma + maliyet API'leri | `functions/oyun/gunluk-kare-bulmaca/api/admin/{import.js,import-costs.js}` |
 | SEO tarih yolu | `functions/oyun/gunluk-kare-bulmaca/[date].js` |
 | Güvenlik başlıkları + admin auth | `functions/_middleware.js` |
 | D1 şeması | `migrations/` |
@@ -84,6 +87,11 @@ Cumhuriyet Worker'ında `/oyun/gunluk-kare-bulmaca/*` → bu projenin
 2. **Doğrula** → eksik ipucu, geçersiz karakter, bağlantısız kare yakalanır.
 3. **Önizle** → oyuncunun göreceği hali (taslak da önizlenir).
 4. **Yayına Planla** → yayın tarihi atanır; o gün otomatik yayına girer.
+
+Çözülmüş fotoğraftan LLM analizi çalıştırıldığında, sağlayıcı maliyetinin 3 katı
+`llm_import_costs` tablosuna toplam maliyet olarak kaydedilir. Editör ekranındaki
+**LLM maliyetleri** bağlantısı tarih aralığına göre toplamları gösterir; ham
+sağlayıcı maliyeti ayrı bir değer olarak gösterilmez.
 
 ## Sonraki adımlar
 - Cache API + CF cache-purge (anlık güncelleme; `wow` ADMIN.md deseni).

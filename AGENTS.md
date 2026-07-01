@@ -35,7 +35,8 @@ subdomain such as `bulmaca.lidyagames.com` can sit in front if preferred).
 - `DB` — D1 database `gunluk-bulmaca` (own database; **not** `world-of-words`).
   Set `database_id` in `wrangler.jsonc` after `wrangler d1 create`.
 - `ADMIN_PASSWORD` (required) / `ADMIN_USERNAME` (optional, default `admin`) —
-  HTTP Basic auth for `/oyun/gunluk-kare-bulmaca/admin.html` and
+  HTTP Basic auth for `/oyun/gunluk-kare-bulmaca/admin.html`,
+  `/oyun/gunluk-kare-bulmaca/admin-costs.html`, and
   `/oyun/gunluk-kare-bulmaca/api/admin/*`, enforced in `functions/_middleware.js`.
   Admin paths fail closed (503) if `ADMIN_PASSWORD` is unset.
 
@@ -63,11 +64,14 @@ wrangler pages secret put OPENAI_API_KEY --project-name cumhuriyet-gunluk-bulmac
 ```
 
 The admin surface must **not** be exposed through the Cumhuriyet proxy — keep
-`/api/admin/*` reachable only on the `pages.dev` origin.
+`admin*.html` and `/api/admin/*` reachable only on the `pages.dev` origin.
 
 ## Data model
 
 - D1 table `puzzles`, keyed by `puzzle_date` (YYYY-MM-DD, Europe/Istanbul).
+- D1 table `llm_import_costs`, keyed by auto-increment `id`; every admin LLM
+  image-analysis stores only the multiplied total cost (`provider cost × 3`) as
+  integer micro-USD. The raw provider cost is not stored as a separate value.
 - No cron, no KV. "Today" = the row whose date is today. A future-dated
   `scheduled` row becomes live automatically when its date arrives.
 - `/api/puzzle/:date` hides `draft` rows and future dates; the editor previews
@@ -79,12 +83,15 @@ The admin surface must **not** be exposed through the Cumhuriyet proxy — keep
   (`functions/.../sitemap.xml.js`) lists every live (non-draft, date-reached)
   puzzle from D1. No static file to keep in sync.
 - **robots.txt is only honored at the domain root.** `public/robots.txt`
-  governs the `*.pages.dev` origin only (disallows `admin.html` + `/api/`).
+  governs the `*.pages.dev` origin only (disallows admin pages + `/api/`).
   Crawlers ignore a robots.txt under `/oyun/...`, so **ask Cumhuriyet to add to
   their root `cumhuriyet.com.tr/robots.txt`:**
 
   ```
   Disallow: /oyun/gunluk-kare-bulmaca/admin.html
+  Disallow: /oyun/gunluk-kare-bulmaca/admin
+  Disallow: /oyun/gunluk-kare-bulmaca/admin-costs.html
+  Disallow: /oyun/gunluk-kare-bulmaca/admin-costs
   Disallow: /oyun/gunluk-kare-bulmaca/api/
   Sitemap: https://www.cumhuriyet.com.tr/oyun/gunluk-kare-bulmaca/sitemap.xml
   ```
