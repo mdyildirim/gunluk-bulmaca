@@ -61,7 +61,12 @@
   #importIssues .i-warn{color:var(--warn);}
   #importIssues .i-info{color:var(--muted);}
   #importIssues .i-ok{color:var(--ok);font-weight:600;}
-  input[type=file]{font-size:13px;}
+  .file-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  .file-picker{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .file-button{margin:0;display:inline-flex;align-items:center;min-height:34px;padding:8px 13px;border:1px solid var(--line);
+    border-radius:6px;background:#fff;color:var(--ink);font-size:13px;cursor:pointer;}
+  .file-button:hover{filter:brightness(.97);}
+  .file-name{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;}
   .media-panel{display:grid;gap:8px;}
   .media-panel .row{gap:8px;}
   .media-nudge{display:grid;grid-template-columns:repeat(3,36px);grid-template-rows:repeat(3,32px);gap:4px;align-items:center;}
@@ -89,7 +94,11 @@
     <div>
       <div class="card">
         <h2>0 · Analiz</h2>
-        <input type="file" id="imgSolved" accept="image/*">
+        <div class="file-picker">
+          <input class="file-input" type="file" id="imgSolved" accept="image/*">
+          <label class="file-button" for="imgSolved">Çözülmüş fotoğraf seç</label>
+          <span id="imgSolvedName" class="file-name">Dosya seçilmedi</span>
+        </div>
         <div class="btns" style="margin-top:10px"><button id="importBtn">Analiz Et</button></div>
         <div id="importProgress" class="import-progress" aria-live="polite" aria-label="Analiz sürüyor">
           <div class="progress-dot" aria-hidden="true"></div>
@@ -118,7 +127,11 @@ KASA
       <div class="card">
         <h2>Görsel</h2>
         <div class="media-panel">
-          <input type="file" id="mediaImage" accept="image/*">
+          <div class="file-picker">
+            <input class="file-input" type="file" id="mediaImage" accept="image/*">
+            <label class="file-button" for="mediaImage">Görsel seç</label>
+            <span id="mediaImageName" class="file-name">Dosya seçilmedi</span>
+          </div>
           <div class="row">
             <div><label>Satır</label><input type="number" id="mediaRow" min="1" step="1"></div>
             <div><label>Sütun</label><input type="number" id="mediaCol" min="1" step="1"></div>
@@ -161,7 +174,7 @@ KASA
         <div class="btns">
           <button id="validate">Doğrula</button>
           <button id="saveDraft">Taslak Kaydet</button>
-          <button id="schedule" class="primary">Yayına Zamanla</button>
+          <button id="schedule" class="primary">Yayına Planla</button>
         </div>
       </div>
     </div>

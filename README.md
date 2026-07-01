@@ -83,7 +83,7 @@ Cumhuriyet Worker'ında `/oyun/gunluk-kare-bulmaca/*` → bu projenin
 1. Editör `…/admin.html`'e girer (Basic auth) → künye + çözülmüş ızgara + ipuçları.
 2. **Doğrula** → eksik ipucu, geçersiz karakter, bağlantısız kare yakalanır.
 3. **Önizle** → oyuncunun göreceği hali (taslak da önizlenir).
-4. **Yayına Zamanla** → yayın tarihi atanır; o gün otomatik yayına girer.
+4. **Yayına Planla** → yayın tarihi atanır; o gün otomatik yayına girer.
 
 ## Sonraki adımlar
 - Cache API + CF cache-purge (anlık güncelleme; `wow` ADMIN.md deseni).

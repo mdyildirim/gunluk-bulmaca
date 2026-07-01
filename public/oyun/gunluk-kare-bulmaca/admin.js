@@ -4,6 +4,7 @@ const BASE = "/oyun/gunluk-kare-bulmaca";
 const IMPORT_PROVIDER = "openai";
 const PREVIEW_KEY = "cumhuriyet-bulmaca-admin-preview";
 const EDITOR_DRAFT_KEY = "cumhuriyet-bulmaca-admin-editor-draft-v1";
+const NO_FILE_TEXT = "Dosya seçilmedi";
 const $=id=>document.getElementById(id);
 let clues={across:{},down:{}};
 let answerEdits={across:{},down:{}};
@@ -39,6 +40,19 @@ function cleanTextMap(value){
 }
 function cleanPairState(value){
   return {across:cleanTextMap(value&&value.across),down:cleanTextMap(value&&value.down)};
+}
+function statusClass(status){
+  return status==="scheduled"?"scheduled":"draft";
+}
+function statusText(status,date,today){
+  if(status==="scheduled")return date&&today&&date<=today?"Yayında":"Planlı";
+  return "Taslak";
+}
+function updateFileName(inputId,targetId){
+  const input=$(inputId),target=$(targetId);
+  if(!input||!target)return;
+  const file=input.files&&input.files[0];
+  target.textContent=file?file.name:NO_FILE_TEXT;
 }
 function cleanMediaState(value){
   return (Array.isArray(value)?value:[])
@@ -282,7 +296,7 @@ async function save(status){
   persistEditorDraftNow();
   try{
     const res=await fetch(`${BASE}/api/admin/puzzles`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...payload(),status})});
-    if(res.ok){alert(status==="scheduled"?"Yayına zamanlandı.":"Taslak kaydedildi.");loadList();}
+    if(res.ok){alert(status==="scheduled"?"Yayına planlandı.":"Taslak kaydedildi.");loadList();}
     else{const e=await res.json().catch(()=>({}));alert("Kaydetme hatası: "+JSON.stringify(e.errors||e.error||res.status));}
   }catch(e){alert("API'ye ulaşılamadı.");}
 }
@@ -294,6 +308,7 @@ async function loadList(){
     if(!puzzles||!puzzles.length){tb.innerHTML='<tr><td class="sub" colspan="4">Kayıt yok.</td></tr>';return;}
     puzzles.forEach(p=>{
       const tr=document.createElement("tr");
+      tr.dataset.date=p.puzzle_date||"";
       const dateTd=document.createElement("td");
       const link=document.createElement("a");
       link.href=`${BASE}/${isoToUrlDate(p.puzzle_date)}`;
@@ -304,15 +319,17 @@ async function loadList(){
       noTd.textContent=p.no||"";
       const statusTd=document.createElement("td");
       const pill=document.createElement("span");
-      const status=p.status==="scheduled"?"scheduled":"draft";
+      const status=statusClass(p.status);
       pill.className=`pill ${status}`;
-      pill.textContent=p.status||"";
+      pill.textContent=statusText(p.status,p.puzzle_date,today);
       statusTd.appendChild(pill);
       const actionTd=document.createElement("td");
-      if(status==="scheduled"&&today&&p.puzzle_date>today){
+      if(status==="scheduled"){
         const btn=document.createElement("button");
         btn.type="button";
         btn.className="danger small";
+        btn.dataset.action="delete-puzzle";
+        btn.dataset.date=p.puzzle_date||"";
         btn.textContent="Sil";
         btn.addEventListener("click",()=>deleteScheduledPuzzle(p.puzzle_date));
         actionTd.appendChild(btn);
@@ -329,12 +346,12 @@ async function loadList(){
   }catch(e){$("list").querySelector("tbody").innerHTML='<tr><td class="sub" colspan="4">API yok (yerel statik önizleme).</td></tr>';}
 }
 async function deleteScheduledPuzzle(date){
-  if(!confirm(`${date} tarihli zamanlanmış bulmacayı silmek istiyor musunuz?`))return;
+  if(!confirm(`${date} tarihli planlı bulmacayı silmek istiyor musunuz?`))return;
   try{
     const res=await fetch(`${BASE}/api/admin/puzzles?date=${encodeURIComponent(date)}`,{method:"DELETE"});
     const data=await res.json().catch(()=>({}));
     if(res.ok){
-      alert("Zamanlanmış bulmaca silindi.");
+      alert("Planlı bulmaca silindi.");
       loadList();
       return;
     }
@@ -477,6 +494,7 @@ async function runImport(){
 }
 
 $("importBtn").onclick=runImport;
+$("imgSolved").addEventListener("change",()=>updateFileName("imgSolved","imgSolvedName"));
 $("grid").addEventListener("input",handleGridInput);
 $("date").addEventListener("input",persistEditorDraftSoon);
 $("no").addEventListener("input",persistEditorDraftSoon);
@@ -489,6 +507,7 @@ $("schedule").onclick=()=>save("scheduled");
 $("openPlayer").addEventListener("click",preparePlayerPreview);
 $("mediaImage").addEventListener("change",async e=>{
   const file=e.target.files&&e.target.files[0];
+  updateFileName("mediaImage","mediaImageName");
   if(!file)return;
   try{
     mediaPlacementMode="auto";
@@ -504,6 +523,8 @@ $("mediaDown").onclick=()=>nudgeMedia(1,0);
 $("mediaLeft").onclick=()=>nudgeMedia(0,-1);
 $("mediaRight").onclick=()=>nudgeMedia(0,1);
 $("mediaAuto").onclick=autoPlaceMedia;
-$("mediaClear").onclick=()=>{media=[];mediaPlacementMode="auto";$("mediaImage").value="";syncMediaControls();renderPreview();persistEditorDraftSoon();};
+$("mediaClear").onclick=()=>{media=[];mediaPlacementMode="auto";$("mediaImage").value="";updateFileName("mediaImage","mediaImageName");syncMediaControls();renderPreview();persistEditorDraftSoon();};
 restoreEditorDraft();
+updateFileName("imgSolved","imgSolvedName");
+updateFileName("mediaImage","mediaImageName");
 genClues();loadList();
