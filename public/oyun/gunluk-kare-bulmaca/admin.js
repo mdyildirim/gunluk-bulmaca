@@ -2,7 +2,6 @@ import { buildWords, normalizeSolution, validate, isoToUrlDate, reconcileImport,
 
 const BASE = "/oyun/gunluk-kare-bulmaca";
 const IMPORT_PROVIDER = "openai";
-const IMPORT_LABEL = "GPT-5.5";
 const PREVIEW_KEY = "cumhuriyet-bulmaca-admin-preview";
 const $=id=>document.getElementById(id);
 let clues={across:{},down:{}};
@@ -132,6 +131,12 @@ function renderIssues(targetId,issues){
   });
 }
 function renderImportIssues(issues){renderIssues("importIssues",issues);}
+function setImportProgress(active,label=""){
+  const box=$("importProgress"),txt=$("importProgressText"),st=$("importStatus");
+  if(box)box.classList.toggle("active",!!active);
+  if(txt)txt.textContent=label||"Analiz sürüyor";
+  if(st)st.textContent=label;
+}
 // Izgara isteğinde sunucu NDJSON akışı döndürür (her satır bir JSON nesnesi):
 //   {t:"progress",sec,think} canlı tutar · {t:"result",...} sonuç · {t:"error",error}.
 // Akan "progress" satırları bağlantıyı canlı tutar (524 olmaz). Son sonucu döndürür.
@@ -171,9 +176,9 @@ async function runImport(){
   const fs=$("imgSolved").files&&$("imgSolved").files[0];
   if(!fs){alert("Çözülmüş fotoğrafı seçin.");return;}
   let grid;
-  const btn=$("importBtn"),st=$("importStatus"),old=btn.textContent;
-  btn.disabled=true;btn.textContent="İşleniyor...";
-  st.textContent=`${IMPORT_LABEL}: analiz ediliyor...`;
+  const btn=$("importBtn"),old=btn.textContent;
+  btn.disabled=true;btn.textContent="Analiz ediliyor...";
+  setImportProgress(true,"Analiz ediliyor");
   $("importIssues").innerHTML="";
   try{
     const imageBase64=await fileToBase64(fs);
@@ -182,17 +187,17 @@ async function runImport(){
     const isStream=(res.headers.get("content-type")||"").includes("application/x-ndjson");
     const data = isStream
       ? await readImportStream(res,m=>{
-          if(m.phase==="words") st.textContent=`İpuçları işleniyor...`+(m.sec?` ${m.sec} sn`:"");
-          else if(m.t==="grid") st.textContent="Izgara alındı.";
-          else st.textContent=`Analiz sürüyor... ${m.sec||0} sn`;
+          if(m.phase==="words") setImportProgress(true,"İpuçları işleniyor");
+          else if(m.t==="grid") setImportProgress(true,"Izgara hazır");
+          else setImportProgress(true,"Analiz ediliyor");
         })
       : await res.json().catch(()=>({}));
-    if(!res.ok||!data.ok){st.textContent="";alert("Analiz hatası: "+(data.error||res.status)+(data.detail?("\n"+data.detail):""));return;}
+    if(!res.ok||!data.ok){setImportProgress(false,"");alert("Analiz hatası: "+(data.error||res.status)+(data.detail?("\n"+data.detail):""));return;}
     if(!Array.isArray(data.grid)||!data.grid.length){
-      st.textContent="";alert("Izgara okunamadı"+(data.gridError?": "+data.gridError:"."));return;
+      setImportProgress(false,"");alert("Izgara okunamadı"+(data.gridError?": "+data.gridError:"."));return;
     }
     if(!Array.isArray(data.words)||!data.words.length){
-      st.textContent="";alert("İpuçları okunamadı.");return;
+      setImportProgress(false,"");alert("İpuçları okunamadı.");return;
     }
     {
       $("grid").value=data.grid.join("\n");
@@ -207,8 +212,8 @@ async function runImport(){
     const filled=Object.keys(rec.clues.across).length+Object.keys(rec.clues.down).length;
     const miss=rec.issues.filter(i=>i.level==="info").length;
     const warn=rec.issues.filter(i=>i.level==="warn").length;
-    st.textContent=`[${data.model||IMPORT_LABEL}] ${data.words.length} ipucu · ${filled} eşleşti · ${miss} eksik`+(warn?` · ${warn} uyarı`:"");
-  }catch(e){st.textContent="";alert("İçe aktarma başarısız: "+((e&&e.message)||e));}
+    setImportProgress(false,`${data.words.length} ipucu · ${filled} eşleşti · ${miss} eksik`+(warn?` · ${warn} uyarı`:""));
+  }catch(e){setImportProgress(false,"");alert("İçe aktarma başarısız: "+((e&&e.message)||e));}
   finally{btn.disabled=false;btn.textContent=old;}
 }
 
