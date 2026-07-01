@@ -4,6 +4,30 @@ import { isISODate } from "../../../../_lib/dates.js";
 
 // Bu yol /api/admin/* altında olduğundan _middleware Basic auth ile korur.
 
+function cleanMedia(media) {
+  return (Array.isArray(media) ? media : [])
+    .filter(m => m && m.type === "image" && typeof m.src === "string" && m.src.startsWith("data:image/"))
+    .map(m => ({
+      type: "image",
+      src: m.src,
+      row: Math.max(1, Math.trunc(Number(m.row) || 1)),
+      col: Math.max(1, Math.trunc(Number(m.col) || 1)),
+      rows: Math.max(1, Math.trunc(Number(m.rows) || 1)),
+      cols: Math.max(1, Math.trunc(Number(m.cols) || 1))
+    }))
+    .slice(0, 1);
+}
+
+function cluesForStorage(clues, media) {
+  const out = {
+    across: { ...((clues && clues.across) || {}) },
+    down: { ...((clues && clues.down) || {}) }
+  };
+  const clean = cleanMedia(media);
+  if (clean.length) out.__media = clean;
+  return out;
+}
+
 // GET — kayıtlı bulmacaların listesi (editör paneli için)
 export const onRequestGet = async ({ env }) => {
   const { results } = await env.DB
@@ -24,6 +48,7 @@ export const onRequestPost = async ({ env, request }) => {
   if (!v.ok) return json({ ok: false, errors: v.errors, warnings: v.warnings }, 422);
 
   const status = body.status === "scheduled" ? "scheduled" : "draft";
+  const clues = cluesForStorage(body.clues, body.media);
   await env.DB
     .prepare(
       `INSERT INTO puzzles (puzzle_date,no,title,status,solution,clues,updated_at)
@@ -33,7 +58,7 @@ export const onRequestPost = async ({ env, request }) => {
          solution=excluded.solution, clues=excluded.clues, updated_at=datetime('now')`
     )
     .bind(body.date, body.no || "", body.title || "", status,
-          JSON.stringify(body.solution), JSON.stringify(body.clues))
+          JSON.stringify(body.solution), JSON.stringify(clues))
     .run();
 
   return json({ ok: true, warnings: v.warnings }, 200, { "cache-control": "no-store" });

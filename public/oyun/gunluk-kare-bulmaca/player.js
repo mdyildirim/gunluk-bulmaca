@@ -31,6 +31,7 @@ function fillerPuzzle(n){
 
 let P, sel={r:null,c:null,dir:"across"}, entries={}, instant=true, STORAGE="", activeDate=null;
 const $=id=>document.getElementById(id);
+const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 
 function dateFromUrl(){
   // Yol Türkçe biçimde: /oyun/gunluk-kare-bulmaca/13-06-2026 → dahili ISO'ya çevir.
@@ -89,6 +90,7 @@ function init(raw, options={}){
   document.title=`${trDate(P.date)} Kare Bulmaca — Cumhuriyet`;
 
   const board=$("board");
+  board.innerHTML="";
   board.style.gridTemplateColumns=`repeat(${P.cols},var(--cell))`;
   const avail=Math.min(window.innerWidth-40,460);
   const cell=Math.max(30,Math.min(52,Math.floor(avail/P.cols)));
@@ -98,6 +100,8 @@ function init(raw, options={}){
   for(let r=0;r<P.rows;r++)for(let c=0;c<P.cols;c++){
     const el=document.createElement("div");
     el.className="cell"+(P.isBlack(r,c)?" black":"");
+    el.style.gridRow=String(r+1);
+    el.style.gridColumn=String(c+1);
     if(!P.isBlack(r,c)){
       const n=P.numberAt[r+","+c];
       if(n){const ns=document.createElement("span");ns.className="num";ns.textContent=n;el.appendChild(ns);}
@@ -107,11 +111,38 @@ function init(raw, options={}){
     }
     board.appendChild(el);
   }
+  renderBoardMedia(board);
   buildClueLists();
   setArchiveNav(ISO.exec(activeDate||P.date||"")?.[1]||null);
   const first=[...P.words].sort((a,b)=>a.num-b.num)[0];
   if(first)sel={r:first.cells[0].r,c:first.cells[0].c,dir:first.dir};
   render(); checkComplete();
+}
+
+function boardMedia(){
+  return (Array.isArray(P.media) ? P.media : [])
+    .filter(m=>m&&m.type==="image"&&typeof m.src==="string"&&m.src)
+    .map(m=>{
+      const row=clamp(Math.trunc(Number(m.row)||1),1,Math.max(1,P.rows));
+      const col=clamp(Math.trunc(Number(m.col)||1),1,Math.max(1,P.cols));
+      const rows=clamp(Math.trunc(Number(m.rows)||1),1,Math.max(1,P.rows-row+1));
+      const cols=clamp(Math.trunc(Number(m.cols)||1),1,Math.max(1,P.cols-col+1));
+      return {src:m.src,row,col,rows,cols};
+    });
+}
+
+function renderBoardMedia(board){
+  for(const m of boardMedia()){
+    const box=document.createElement("div");
+    box.className="board-media";
+    box.style.gridRow=`${m.row} / span ${m.rows}`;
+    box.style.gridColumn=`${m.col} / span ${m.cols}`;
+    const img=document.createElement("img");
+    img.src=m.src;
+    img.alt="";
+    box.appendChild(img);
+    board.appendChild(box);
+  }
 }
 
 function setArchiveNav(iso){

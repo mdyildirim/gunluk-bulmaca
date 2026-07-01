@@ -82,7 +82,8 @@ export function buildPuzzle(puzzle) {
     w.key = w.num + "," + w.dir;
   });
   return { rows, cols, sol, numberAt, words, cellWords, isBlack,
-           date: puzzle.date, no: puzzle.no, title: puzzle.title };
+           date: puzzle.date, no: puzzle.no, title: puzzle.title,
+           media: Array.isArray(puzzle.media) ? puzzle.media : [] };
 }
 
 /* Editör/yükleme doğrulaması — yayından önce çalışır. */

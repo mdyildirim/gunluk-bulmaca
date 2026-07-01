@@ -6,6 +6,8 @@ const PREVIEW_KEY = "cumhuriyet-bulmaca-admin-preview";
 const $=id=>document.getElementById(id);
 let clues={across:{},down:{}};
 let answerEdits={across:{},down:{}};
+let media=[];
+let mediaPlacementMode="auto";
 
 $("date").value=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Istanbul"}).format(new Date());
 
@@ -21,6 +23,111 @@ function model(){
 function gridAnswerSet(m){
   return new Set(m.words.map(w=>normAnswer(w.cells.map(c=>m.sol[c.r][c.c]).join(""))));
 }
+const intVal=(id,def=1)=>{const n=Math.trunc(Number($(id).value));return Number.isFinite(n)&&n>0?n:def;};
+const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
+const hasMediaPlacement=m=>Number.isFinite(Number(m.row))&&Number.isFinite(Number(m.col))&&
+  Number.isFinite(Number(m.rows))&&Number.isFinite(Number(m.cols));
+function mediaForGrid(rows,cols){
+  return media.filter(m=>m&&m.src&&hasMediaPlacement(m)).map(m=>{
+    const row=clamp(Math.trunc(Number(m.row)||1),1,Math.max(1,rows));
+    const col=clamp(Math.trunc(Number(m.col)||1),1,Math.max(1,cols));
+    const rs=clamp(Math.trunc(Number(m.rows)||1),1,Math.max(1,rows-row+1));
+    const cs=clamp(Math.trunc(Number(m.cols)||1),1,Math.max(1,cols-col+1));
+    return {type:"image",src:m.src,row,col,rows:rs,cols:cs};
+  });
+}
+function syncMediaControls(){
+  const m=media[0]||{};
+  $("mediaRow").value=m.row||"";
+  $("mediaCol").value=m.col||"";
+  $("mediaRows").value=m.rows||"";
+  $("mediaCols").value=m.cols||"";
+  $("mediaStatus").textContent=m.src?(hasMediaPlacement(m)?"Görsel yerleştirildi.":"Görsel hazır."):"";
+}
+function cleanMediaForPayload(){
+  const {rows,cols}=model();
+  return mediaForGrid(rows,cols);
+}
+function updateMediaFromControls(){
+  if(!media[0]||!media[0].src)return;
+  mediaPlacementMode="manual";
+  media[0]={...media[0],
+    row:intVal("mediaRow",media[0].row||1),
+    col:intVal("mediaCol",media[0].col||1),
+    rows:intVal("mediaRows",media[0].rows||1),
+    cols:intVal("mediaCols",media[0].cols||1)};
+  renderPreview();
+}
+function nudgeMedia(dr,dc){
+  if(!media[0]||!media[0].src){$("mediaStatus").textContent="Önce görsel seçin.";return;}
+  if(!hasMediaPlacement(media[0])&&!autoPlaceMedia({quiet:true}))return;
+  const {rows,cols}=model();
+  const current=mediaForGrid(rows,cols)[0];
+  if(!current)return;
+  mediaPlacementMode="manual";
+  media[0]={...media[0],
+    row:clamp(current.row+dr,1,Math.max(1,rows-current.rows+1)),
+    col:clamp(current.col+dc,1,Math.max(1,cols-current.cols+1)),
+    rows:current.rows,
+    cols:current.cols};
+  syncMediaControls();
+  renderPreview();
+}
+function largestBlackRect(){
+  const {rows,cols,isBlack}=model();
+  const heights=Array(cols).fill(0);
+  let best={row:1,col:1,rows:1,cols:1,area:0};
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++)heights[c]=isBlack(r,c)?heights[c]+1:0;
+    const stack=[];
+    for(let c=0;c<=cols;c++){
+      const h=c<cols?heights[c]:0;
+      while(stack.length&&heights[stack[stack.length-1]]>h){
+        const idx=stack.pop(),height=heights[idx];
+        const left=stack.length?stack[stack.length-1]+1:0;
+        const width=c-left,area=height*width;
+        if(area>best.area)best={row:r-height+2,col:left+1,rows:height,cols:width,area};
+      }
+      stack.push(c);
+    }
+  }
+  return best.area?best:null;
+}
+function autoPlaceMedia({quiet=false}={}){
+  if(!media[0]||!media[0].src){if(!quiet)$("mediaStatus").textContent="Önce görsel seçin.";return false;}
+  const rect=largestBlackRect();
+  if(!rect){
+    delete media[0].row;delete media[0].col;delete media[0].rows;delete media[0].cols;
+    syncMediaControls();renderPreview();
+    $("mediaStatus").textContent=quiet?"Görsel hazır.":"Siyah alan bulunamadı.";
+    return false;
+  }
+  mediaPlacementMode="auto";
+  media[0]={...media[0],row:rect.row,col:rect.col,rows:rect.rows,cols:rect.cols};
+  syncMediaControls();
+  renderPreview();
+  return true;
+}
+function handleGridInput(){
+  if(media[0]&&media[0].src&&mediaPlacementMode==="auto"){
+    autoPlaceMedia({quiet:true});
+    return;
+  }
+  renderPreview();
+}
+function renderPreviewMedia(g,rows,cols){
+  for(const m of mediaForGrid(rows,cols)){
+    const box=document.createElement("div");
+    box.className="preview-media";
+    box.style.gridRow=`${m.row} / span ${m.rows}`;
+    box.style.gridColumn=`${m.col} / span ${m.cols}`;
+    const img=document.createElement("img");
+    img.src=m.src;
+    img.alt="";
+    box.appendChild(img);
+    g.appendChild(box);
+  }
+}
 function checkAnswerInput(row,input,answers){
   const ok=answers.has(normAnswer(input.value));
   row.classList.toggle("answer-missing",!ok);
@@ -31,12 +138,15 @@ function renderPreview(){
   const g=$("previewGrid");g.innerHTML="";g.style.gridTemplateColumns=`repeat(${cols},26px)`;
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
     const d=document.createElement("div");
+    d.style.gridRow=String(r+1);
+    d.style.gridColumn=String(c+1);
     if(isBlack(r,c))d.className="pc b";
     else{d.className="pc";const n=numberAt[r+","+c];
       if(n){const s=document.createElement("span");s.className="n";s.textContent=n;d.appendChild(s);}
       d.appendChild(document.createTextNode(sol[r][c]));}
     g.appendChild(d);
   }
+  renderPreviewMedia(g,rows,cols);
 }
 function genClues(){
   const m=model();
@@ -65,7 +175,7 @@ function genClues(){
   updatePlayerPreviewHref();
 }
 function payload(){
-  return {date:$("date").value,no:$("no").value,title:$("title").value,solution:readGrid(),clues};
+  return {date:$("date").value,no:$("no").value,title:$("title").value,solution:readGrid(),clues,media:cleanMediaForPayload()};
 }
 function updatePlayerPreviewHref(){
   $("openPlayer").href=`${BASE}/play.html?preview=admin`;
@@ -119,6 +229,33 @@ function fileToBase64(file){
     fr.onerror=()=>reject(fr.error);
     fr.readAsDataURL(file);
   });
+}
+function fileToDataUrl(file){
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onload=()=>resolve(String(fr.result));
+    fr.onerror=()=>reject(fr.error);
+    fr.readAsDataURL(file);
+  });
+}
+async function imageFileToDataUrl(file){
+  const src=await fileToDataUrl(file);
+  const img=await new Promise((resolve,reject)=>{
+    const im=new Image();
+    im.onload=()=>resolve(im);
+    im.onerror=()=>reject(new Error("Görsel okunamadı."));
+    im.src=src;
+  });
+  const maxSide=900,scale=Math.min(1,maxSide/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
+  const w=Math.max(1,Math.round((img.naturalWidth||img.width)*scale));
+  const h=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
+  const canvas=document.createElement("canvas");
+  canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext("2d");
+  ctx.drawImage(img,0,0,w,h);
+  const out=canvas.toDataURL("image/jpeg",0.82);
+  if(out.length>1200000)throw new Error("Görsel çok büyük.");
+  return out;
 }
 function renderIssues(targetId,issues){
   const el=$(targetId);if(!el)return;el.innerHTML="";
@@ -207,6 +344,7 @@ async function runImport(){
     const rec=reconcileImport({grid,clues:data.words});
     clues=rec.clues;
     genClues();
+    if(media[0]&&media[0].src&&mediaPlacementMode==="auto")autoPlaceMedia({quiet:true});
     showReport(validate(payload()));
     renderImportIssues(rec.issues);
     const filled=Object.keys(rec.clues.across).length+Object.keys(rec.clues.down).length;
@@ -218,10 +356,28 @@ async function runImport(){
 }
 
 $("importBtn").onclick=runImport;
-$("grid").addEventListener("input",renderPreview);
+$("grid").addEventListener("input",handleGridInput);
 $("genClues").onclick=genClues;
 $("validate").onclick=()=>showReport(validate(payload()));
 $("saveDraft").onclick=()=>save("draft");
 $("schedule").onclick=()=>save("scheduled");
 $("openPlayer").addEventListener("click",preparePlayerPreview);
+$("mediaImage").addEventListener("change",async e=>{
+  const file=e.target.files&&e.target.files[0];
+  if(!file)return;
+  try{
+    mediaPlacementMode="auto";
+    media=[{type:"image",src:await imageFileToDataUrl(file)}];
+    autoPlaceMedia({quiet:true});
+  }catch(err){
+    media=[];mediaPlacementMode="auto";syncMediaControls();renderPreview();alert((err&&err.message)||"Görsel yüklenemedi.");
+  }
+});
+["mediaRow","mediaCol","mediaRows","mediaCols"].forEach(id=>$(id).addEventListener("input",updateMediaFromControls));
+$("mediaUp").onclick=()=>nudgeMedia(-1,0);
+$("mediaDown").onclick=()=>nudgeMedia(1,0);
+$("mediaLeft").onclick=()=>nudgeMedia(0,-1);
+$("mediaRight").onclick=()=>nudgeMedia(0,1);
+$("mediaAuto").onclick=autoPlaceMedia;
+$("mediaClear").onclick=()=>{media=[];mediaPlacementMode="auto";$("mediaImage").value="";syncMediaControls();renderPreview();};
 genClues();loadList();
