@@ -17,7 +17,7 @@
 // Sabit genişlik dayatılır: modelin en büyük zaafı satır başına hücre SAYISINI
 // tutarlı tutmaktır; boyut bilinince bu serbestlik kalkar. Boyut verilmezse yalnızca
 // "her satır eşit uzunlukta" denir (hizalama daha sık kayar).
-export function gridPrompt(rows, cols) {
+function gridPromptBody(rows, cols) {
   const dims = (rows && cols)
     ? `Return ${rows} strings, each exactly ${cols} characters.`
     : `Return one string per row; all strings must have the same length.`;
@@ -27,9 +27,19 @@ ${dims}
 
 For each physical cell, output:
 - the uppercase Turkish letter if the cell contains exactly one large answer letter
-- "#" for anything else: clue text, arrows, photo, black/empty cells
+- "#" for anything else: clue text, arrows, photo, black/empty cells`;
+}
+
+export function gridPrompt(rows, cols) {
+  return `${gridPromptBody(rows, cols)}
 
 Output only a JSON array of strings.`;
+}
+
+export function gridObjectPrompt(rows, cols) {
+  return `${gridPromptBody(rows, cols)}
+
+Return JSON matching the supplied schema: {"rows":["..."]}.`;
 }
 
 // --- 2A) Tercih edilen yol: slot kataloğuna ipucu bağlama --------------------
@@ -45,6 +55,11 @@ export function slotCluesPrompt(slots) {
     .join("\n");
   return `Extract clue-slot pairs from the image.
 
+The SLOT_ID values below are internal labels generated from our extracted grid.
+They are not printed in the image. Use the printed clue text, arrow direction,
+visible answer letters, and listed slot position/answer to choose the matching
+SLOT_ID.
+
 Slots:
 ${catalog}
 
@@ -53,6 +68,30 @@ Use only listed slot IDs. Use "?" only when the arrow target is unreadable.
 Preserve printed clue text; collapse line breaks.
 
 Output only JSON, like [["A9","Bilgisizlik"],["D1","İnce, yassı elmas"]].`;
+}
+
+export function slotCluesObjectPrompt(slots) {
+  const catalog = (Array.isArray(slots) ? slots : [])
+    .map(s => {
+      const pos = s.row && s.col ? ` r${s.row}c${s.col}` : "";
+      return `${s.id} ${s.dir === "down" ? "DOWN" : "ACROSS"} ${s.answer}${pos}`;
+    })
+    .join("\n");
+  return `Extract clue-slot pairs from the image.
+
+The SLOT_ID values below are internal labels generated from our extracted grid.
+They are not printed in the image. Use the printed clue text, arrow direction,
+visible answer letters, and listed slot position/answer to choose the matching
+SLOT_ID.
+
+Slots:
+${catalog}
+
+Follow each clue arrow to one slot. Use only listed slot IDs. Use "?" only when
+the arrow target cannot be matched to any listed slot.
+Preserve printed clue text; collapse line breaks.
+
+Return JSON matching the supplied schema: {"pairs":[{"slot":"A9","clue":"Bilgisizlik"}]}.`;
 }
 
 // --- 2B) Yedek yol: grid/slot yoksa eski serbest cevap istemi ----------------
@@ -66,6 +105,15 @@ For each clue, follow its arrow and return [ANSWER, DIR, CLUE].
 - CLUE: printed clue text
 
 Output only a JSON array.`;
+
+export const wordsObjectPrompt = `Extract all clue-answer pairs from this solved Turkish arrow crossword image.
+
+For each clue, follow its arrow and return one object with:
+- answer: visible answer letters only
+- dir: "a" for across, "d" for down
+- clue: printed clue text
+
+Return JSON matching the supplied schema: {"pairs":[{"answer":"CAHİLLİK","dir":"a","clue":"Bilgisizlik"}]}.`;
 
 // --- Ayrıştırıcılar ---------------------------------------------------------
 const stripFences = s => {
@@ -86,8 +134,19 @@ export function extractArray(text) {
 // WORDS üçlülerini reconcileImport'un beklediği {answer,clue,dir} biçimine çevir.
 export function triplesToClues(arr) {
   return (Array.isArray(arr) ? arr : [])
-    .filter(t => Array.isArray(t) && t.length >= 3)
-    .map(([answer, dir, clue]) => ({
+    .map(t => {
+      if (Array.isArray(t) && t.length >= 3)
+        return { answer: t[0], dir: t[1], clue: t[2] };
+      if (t && typeof t === "object")
+        return {
+          answer: t.answer ?? t.cevap ?? t.ANSWER,
+          dir: t.dir ?? t.direction ?? t.yon ?? t.DIR,
+          clue: t.clue ?? t.hint ?? t.ipucu ?? t.text ?? t.CLUE
+        };
+      return null;
+    })
+    .filter(Boolean)
+    .map(({ answer, dir, clue }) => ({
       answer: String(answer == null ? "" : answer),
       clue: String(clue == null ? "" : clue),
       dir: String(dir).toLowerCase().startsWith("d") ? "down" : "across"

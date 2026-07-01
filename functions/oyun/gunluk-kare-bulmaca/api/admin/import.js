@@ -2,8 +2,11 @@ import { json } from "../../../../_lib/http.js";
 import { slotCatalogFromSolution } from "../../../../_lib/engine.js";
 import {
   gridPrompt,
+  gridObjectPrompt,
   slotCluesPrompt,
+  slotCluesObjectPrompt,
   wordsPrompt,
+  wordsObjectPrompt,
   extractArray,
   triplesToClues,
   slotPairsToClues
@@ -20,7 +23,8 @@ import {
 // "düşünce" tokenları ~2 sn'de bir akar (ölçüldü: en uzun sessizlik 3 sn). Akan
 // baytlar bağlantıyı canlı tutar → 524 olmaz. Sunucu da tarayıcıya NDJSON ilerleme
 // satırları yazarak istemci bacağını canlı tutar. İstemler _lib/import-prompt.js'te.
-// responseMimeType json KULLANMIYORUZ (ızgara kalitesini bozuyor) — düz metin + extractArray.
+// Gemini'de responseMimeType json KULLANMIYORUZ (ızgara kalitesini bozuyor).
+// OpenAI tarafında strict json_schema kullanılır; Gemini düz metin + extractArray kalır.
 
 const DEFAULT_PROVIDER = "openai";
 const GEMINI_MODEL = "gemini-3.5-flash";
@@ -51,6 +55,74 @@ const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models
 const GEMINI_STREAM_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`;
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/responses";
 
+const GRID_RESPONSE_FORMAT = {
+  type: "json_schema",
+  name: "crossword_grid",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["rows"],
+    properties: {
+      rows: {
+        type: "array",
+        items: { type: "string" }
+      }
+    }
+  }
+};
+
+const SLOT_CLUES_RESPONSE_FORMAT = {
+  type: "json_schema",
+  name: "crossword_slot_clues",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["pairs"],
+    properties: {
+      pairs: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["slot", "clue"],
+          properties: {
+            slot: { type: "string" },
+            clue: { type: "string" }
+          }
+        }
+      }
+    }
+  }
+};
+
+const ANSWER_CLUES_RESPONSE_FORMAT = {
+  type: "json_schema",
+  name: "crossword_answer_clues",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["pairs"],
+    properties: {
+      pairs: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["answer", "dir", "clue"],
+          properties: {
+            answer: { type: "string" },
+            dir: { type: "string", enum: ["a", "d"] },
+            clue: { type: "string" }
+          }
+        }
+      }
+    }
+  }
+};
+
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;            // ~8 MB (çözümlenmiş)
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
@@ -69,7 +141,7 @@ const geminiBodyFor = (prompt, mimeType, imageBase64, thinking) => JSON.stringif
   generationConfig: { temperature: 0, thinkingConfig: { thinkingLevel: thinking, includeThoughts: true } }
 });
 
-const openaiBodyFor = (prompt, mimeType, imageBase64, thinking, stream) => JSON.stringify({
+const openaiBodyFor = (prompt, mimeType, imageBase64, thinking, stream, textFormat) => JSON.stringify({
   model: OPENAI_MODEL,
   input: [{
     role: "user",
@@ -79,7 +151,7 @@ const openaiBodyFor = (prompt, mimeType, imageBase64, thinking, stream) => JSON.
     ]
   }],
   reasoning: { effort: thinking },
-  text: { format: { type: "text" } },
+  text: { format: textFormat || { type: "text" } },
   store: false,
   stream: !!stream
 });
@@ -233,11 +305,11 @@ async function openaiError(res) {
   }
 }
 
-async function openaiText(key, prompt, mimeType, imageBase64, thinking) {
+async function openaiText(key, prompt, mimeType, imageBase64, thinking, textFormat) {
   const res = await fetch(OPENAI_ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", "authorization": `Bearer ${key}` },
-    body: openaiBodyFor(prompt, mimeType, imageBase64, thinking, false)
+    body: openaiBodyFor(prompt, mimeType, imageBase64, thinking, false, textFormat)
   });
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await openaiError(res)).slice(0, 200)}`);
   const data = await res.json().catch(() => null);
@@ -281,11 +353,11 @@ function collectOpenAISseText(res, onProgress) {
   })();
 }
 
-async function openaiStreamText(key, prompt, mimeType, imageBase64, thinking, onProgress) {
+async function openaiStreamText(key, prompt, mimeType, imageBase64, thinking, onProgress, textFormat) {
   const res = await fetch(OPENAI_ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", "authorization": `Bearer ${key}` },
-    body: openaiBodyFor(prompt, mimeType, imageBase64, thinking, true)
+    body: openaiBodyFor(prompt, mimeType, imageBase64, thinking, true, textFormat)
   });
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await openaiError(res)).slice(0, 200)}`);
   const out = await collectOpenAISseText(res, onProgress);
@@ -293,17 +365,30 @@ async function openaiStreamText(key, prompt, mimeType, imageBase64, thinking, on
   return out;
 }
 
+function unwrapArray(value, arrayKey) {
+  if (Array.isArray(value)) return value;
+  if (arrayKey && value && Array.isArray(value[arrayKey])) return value[arrayKey];
+  throw new Error(`Yanıtta JSON dizi yok${arrayKey ? ` (${arrayKey})` : ""}.`);
+}
+
 async function openaiArray(key, prompt, mimeType, imageBase64, thinking, options = {}) {
   const call = options.stream
-    ? openaiStreamText(key, prompt, mimeType, imageBase64, thinking, options.onProgress)
-    : openaiText(key, prompt, mimeType, imageBase64, thinking);
+    ? openaiStreamText(key, prompt, mimeType, imageBase64, thinking, options.onProgress, options.textFormat)
+    : openaiText(key, prompt, mimeType, imageBase64, thinking, options.textFormat);
   const { text, usage } = await call;
-  return { array: extractArray(text), usage };
+  try {
+    return { array: unwrapArray(extractArray(text), options.arrayKey), usage };
+  } catch (e) {
+    e.usage = usage;
+    throw e;
+  }
 }
 
 function slotBindingLooksFailed(words, slots) {
   const total = Array.isArray(words) ? words.length : 0;
-  if (!slots || !slots.length || total < Math.min(8, slots.length)) return false;
+  if (!slots || !slots.length) return false;
+  const minExpected = Math.min(slots.length, Math.max(4, Math.floor(slots.length * 0.25)));
+  if (total < minExpected) return true;
   const matched = words.filter(w => w && w.slot && w.slot !== "?" && !w.unmatchedSlot && w.answer).length;
   const unknown = words.filter(w => w && (w.unmatchedSlot || !w.answer || w.slot === "?")).length;
   return matched / total < 0.25 && unknown / total > 0.6;
@@ -317,23 +402,47 @@ function answerExtractionLooksFailed(words, slots) {
 async function openaiClues(key, slots, mimeType, imageBase64, thinking, options = {}) {
   const opts = { ...options, stream: true };
   if (slots && slots.length) {
-    const direct = await openaiArray(key, wordsPrompt, mimeType, imageBase64, thinking, opts);
-    const directWords = triplesToClues(direct.array);
-    if (answerExtractionLooksFailed(directWords, slots)) {
-      const slot = await openaiArray(key, slotCluesPrompt(slots), mimeType, imageBase64, thinking, opts);
+    let slotUsage = {};
+    try {
+      const slot = await openaiArray(key, slotCluesObjectPrompt(slots), mimeType, imageBase64, thinking, {
+        ...opts,
+        textFormat: SLOT_CLUES_RESPONSE_FORMAT,
+        arrayKey: "pairs"
+      });
       const slotWords = slotPairsToClues(slot.array, slots);
       if (!slotBindingLooksFailed(slotWords, slots))
-        return { words: slotWords, usage: sumUsage(direct.usage, slot.usage), fallback: "slot" };
-      return { words: directWords, usage: sumUsage(direct.usage, slot.usage), fallback: "answer-dir" };
+        return { words: slotWords, usage: slot.usage };
+      slotUsage = slot.usage;
+    } catch (e) {
+      slotUsage = (e && e.usage) || {};
     }
-    return { words: directWords, usage: direct.usage };
+    const direct = await openaiArray(key, wordsObjectPrompt, mimeType, imageBase64, thinking, {
+      ...opts,
+      textFormat: ANSWER_CLUES_RESPONSE_FORMAT,
+      arrayKey: "pairs"
+    });
+    const directWords = triplesToClues(direct.array);
+    return {
+      words: directWords,
+      usage: sumUsage(slotUsage, direct.usage),
+      fallback: answerExtractionLooksFailed(directWords, slots) ? "answer-dir-weak" : "answer-dir"
+    };
   }
-  const r = await openaiArray(key, wordsPrompt, mimeType, imageBase64, thinking, opts);
+  const r = await openaiArray(key, wordsObjectPrompt, mimeType, imageBase64, thinking, {
+    ...opts,
+    textFormat: ANSWER_CLUES_RESPONSE_FORMAT,
+    arrayKey: "pairs"
+  });
   return { words: triplesToClues(r.array), usage: r.usage };
 }
 
 async function openaiGrid(key, prompt, mimeType, imageBase64, thinking, onProgress) {
-  const r = await openaiArray(key, prompt, mimeType, imageBase64, thinking, { stream: true, onProgress });
+  const r = await openaiArray(key, prompt, mimeType, imageBase64, thinking, {
+    stream: true,
+    onProgress,
+    textFormat: GRID_RESPONSE_FORMAT,
+    arrayKey: "rows"
+  });
   return { array: r.array, usage: r.usage };
 }
 
@@ -494,7 +603,8 @@ export const onRequestPost = async ({ env, request, waitUntil }) => {
     try {
       log("pump start", JSON.stringify({ provider, rows, cols, gridThinking, clueThinking }));
       stopGrid = startHeartbeat(writeLine, { phase: "grid", provider });
-      const gridP = readGrid(provider, key, gridPrompt(rows, cols), mimeType, imageBase64,
+      const gridImportPrompt = provider === "openai" ? gridObjectPrompt(rows, cols) : gridPrompt(rows, cols);
+      const gridP = readGrid(provider, key, gridImportPrompt, mimeType, imageBase64,
         gridThinking,
         (sec, think) => { if (sec % 15 === 0) log("grid akıyor", sec + "s", think + " düşünce-tok"); return writeLine({ t: "progress", phase: "grid", provider, sec, think }); });
       const gRes = await Promise.allSettled([gridP]).then(a => a[0]);
