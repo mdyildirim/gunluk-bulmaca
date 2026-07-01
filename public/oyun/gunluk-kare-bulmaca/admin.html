@@ -34,9 +34,12 @@
   .clue-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .clue-cols h3{font-size:13px;margin:0 0 6px;border-bottom:2px solid #1a1a1a;padding-bottom:3px;}
   .clue-row{display:flex;gap:6px;align-items:center;margin-bottom:5px;}
-  .clue-row .lbl{font-size:12px;min-width:64px;font-weight:600;}
-  .clue-row .lbl small{color:var(--accent);font-weight:400;}
-  .clue-row input{flex:1;padding:5px;font-size:13px;}
+  .clue-row .lbl{font-size:12px;min-width:26px;font-weight:600;}
+  .clue-row .ans-input{flex:0 0 86px;font-family:ui-monospace,Menlo,Consolas,monospace;text-transform:uppercase;}
+  .clue-row .clue-input{flex:1;}
+  .clue-row input{padding:5px;font-size:13px;}
+  .clue-row.answer-missing .ans-input{border-color:var(--err);background:#fff1f1;color:var(--err);font-weight:700;}
+  .clue-row.answer-missing .lbl{color:var(--err);}
   #report{font-size:13px;line-height:1.5;}
   #report .e{color:var(--err);} #report .w{color:var(--warn);} #report .ok{color:var(--ok);font-weight:600;}
   table{width:100%;border-collapse:collapse;font-size:13px;}

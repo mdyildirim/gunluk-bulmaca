@@ -3,6 +3,7 @@ import { buildWords, normalizeSolution, validate, isoToUrlDate, reconcileImport,
 const BASE = "/oyun/gunluk-kare-bulmaca";
 const $=id=>document.getElementById(id);
 let clues={across:{},down:{}};
+let answerEdits={across:{},down:{}};
 const PROVIDER_LABELS={gemini:"Gemini 3.5 Flash",openai:"OpenAI gpt-5.5"};
 const THINKING_OPTIONS={
   gemini:["low","medium","high"],
@@ -33,6 +34,14 @@ function importSlotsForGrid(grid){
     col: s.col
   }));
 }
+function gridAnswerSet(m){
+  return new Set(m.words.map(w=>normAnswer(w.cells.map(c=>m.sol[c.r][c.c]).join(""))));
+}
+function checkAnswerInput(row,input,answers){
+  const ok=answers.has(normAnswer(input.value));
+  row.classList.toggle("answer-missing",!ok);
+  input.title=ok?"Izgarada var":"Izgarada bu cevap yok";
+}
 function renderPreview(){
   const {rows,cols,sol,numberAt,isBlack}=model();
   const g=$("previewGrid");g.innerHTML="";g.style.gridTemplateColumns=`repeat(${cols},26px)`;
@@ -47,15 +56,24 @@ function renderPreview(){
 }
 function genClues(){
   const m=model();
+  const answers=gridAnswerSet(m);
   const a=$("acrossClues"),d=$("downClues");a.innerHTML="";d.innerHTML="";
   const mk=w=>{
     const ans=w.cells.map(c=>m.sol[c.r][c.c]).join("");
     const row=document.createElement("div");row.className="clue-row";
-    row.innerHTML=`<span class="lbl">${w.num} <small>${ans}</small></span>`;
+    const lbl=document.createElement("span");lbl.className="lbl";lbl.textContent=w.num;
+    const ansInp=document.createElement("input");ansInp.type="text";ansInp.className="ans-input";
+    ansInp.value=(answerEdits[w.dir]&&answerEdits[w.dir][w.num])||ans;ansInp.placeholder="Cevap";
+    ansInp.addEventListener("input",()=>{
+      answerEdits[w.dir][w.num]=ansInp.value;
+      checkAnswerInput(row,ansInp,answers);
+    });
     const inp=document.createElement("input");inp.type="text";
+    inp.className="clue-input";
     inp.value=(clues[w.dir]&&clues[w.dir][w.num])||"";inp.placeholder="İpucu…";
     inp.addEventListener("input",()=>{clues[w.dir][w.num]=inp.value;});
-    row.appendChild(inp);return row;
+    row.appendChild(lbl);row.appendChild(ansInp);
+    row.appendChild(inp);checkAnswerInput(row,ansInp,answers);return row;
   };
   m.words.filter(w=>w.dir==="across").sort((x,y)=>x.num-y.num).forEach(w=>a.appendChild(mk(w)));
   m.words.filter(w=>w.dir==="down").sort((x,y)=>x.num-y.num).forEach(w=>d.appendChild(mk(w)));
