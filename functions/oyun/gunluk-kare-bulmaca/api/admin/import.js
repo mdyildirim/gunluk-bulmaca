@@ -22,16 +22,11 @@ import {
 // satırları yazarak istemci bacağını canlı tutar. İstemler _lib/import-prompt.js'te.
 // responseMimeType json KULLANMIYORUZ (ızgara kalitesini bozuyor) — düz metin + extractArray.
 
-const DEFAULT_PROVIDER = "gemini";
+const DEFAULT_PROVIDER = "openai";
 const GEMINI_MODEL = "gemini-3.5-flash";
 const OPENAI_MODEL = "gpt-5.5";
-// thinkingLevel KÜÇÜK harf + duyarlı (minimal|low|medium|high); ayarlanmazsa "high".
-//   • ızgara = low → ÖLÇÜLDÜ (scripts/grid-latency.mjs): medium ~245 sn sürüyor ve
-//     TEK bir Cloudflare invocation'ı o kadar yaşayamıyor (worker akış ortasında
-//     öldürülüyordu — 524 değil, ömür sınırı). low ~25 sn, boyut OK (medium boyutu
-//     YANLIŞ veriyordu!), ~12× ucuz. Geometri yine taslak (orta sütunlar seyrek).
-//     minimal işe yaramıyor (3 sn ama boyut bozuk, ipucu kelimesini hücreye yazıyor).
-//   • kelime = low → medium EK doğruluk getirmiyor, ~200 sn sürüp 524 yapıyordu; low ~60 sn.
+// Runtime import is locked to OpenAI high reasoning. Gemini settings remain only
+// for old helper code paths and are not selectable by the admin API.
 const PROVIDERS = {
   gemini: {
     envName: "GEMINI_API_KEY",
@@ -102,14 +97,9 @@ function cleanSlots(slots) {
 }
 
 const slotsFromSolution = solution => cleanSlots(slotCatalogFromSolution(solution));
-const providerName = value => {
-  const v = String(value || "").trim().toLowerCase();
-  return PROVIDERS[v] ? v : DEFAULT_PROVIDER;
-};
-const thinkingLevel = (value, fallback, levels) => {
-  const v = String(value || "").trim().toLowerCase();
-  return levels.has(v) ? v : fallback;
-};
+// Admin import is intentionally locked to OpenAI high reasoning; stale clients
+// cannot switch providers or thinking levels through request payloads.
+const providerName = () => DEFAULT_PROVIDER;
 
 function collectSseText(res, onProgress) {
   const reader = res.body.getReader();
@@ -447,12 +437,12 @@ export const onRequestPost = async ({ env, request, waitUntil }) => {
   if (imageBase64.length > MAX_IMAGE_BYTES * 1.4)
     return json({ ok: false, error: "Görsel çok büyük (≈8 MB sınırı)." }, 413);
 
-  const withGrid = !!(body && body.withGrid);
+  const withGrid = true;
   const toDim = v => { const n = Math.trunc(Number(v)); return n >= 1 && n <= 50 ? n : null; };
   const rows = toDim(body && body.rows), cols = toDim(body && body.cols);
   const requestSlots = cleanSlots(body && body.slots);
-  const gridThinking = thinkingLevel(body && body.gridThinking, cfg.defaultGridThinking, cfg.thinkingLevels);
-  const clueThinking = thinkingLevel(body && body.clueThinking, cfg.defaultClueThinking, cfg.thinkingLevels);
+  const gridThinking = cfg.defaultGridThinking;
+  const clueThinking = cfg.defaultClueThinking;
   const meta = { thinking: { grid: withGrid ? gridThinking : null, clues: clueThinking } };
 
   // --- Yalnızca ipuçları: hızlı (~60 sn < 100 sn) → düz JSON yanıt. ---

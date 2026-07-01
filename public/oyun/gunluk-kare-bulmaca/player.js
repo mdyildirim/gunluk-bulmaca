@@ -2,6 +2,7 @@ import { buildPuzzle, isLetter, TR_UP, isUrlDate, urlDateToIso, isoToUrlDate } f
 
 /* Mount tabanı — Cumhuriyet proxy'si bu yolu bu projeye yönlendirir. */
 const BASE = "/oyun/gunluk-kare-bulmaca";
+const PREVIEW_KEY = "cumhuriyet-bulmaca-admin-preview";
 const ISO = /(\d{4}-\d{2}-\d{2})/;
 const MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
 const DAYS = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
@@ -43,6 +44,17 @@ function dateFromUrl(){
 // error (beklenmeyen hata), demo (API'ye hiç ulaşılamadı → yerel önizleme).
 async function loadPuzzle(){
   const params=new URLSearchParams(location.search);
+  if(params.get("preview")==="admin"){
+    try{
+      const saved=JSON.parse(localStorage.getItem(PREVIEW_KEY)||"null");
+      const puzzle=saved&&saved.puzzle;
+      if(puzzle&&Array.isArray(puzzle.solution)&&puzzle.solution.length){
+        activeDate=puzzle.date||null;
+        return {state:"preview",puzzle};
+      }
+    }catch(e){}
+    return {state:"preview-empty"};
+  }
   // ?demo → gerçekçi örnek bulmaca (API'siz önizleme); ?demo=21 → NxN yerleşim testi.
   if(params.has("demo")){
     const n=parseInt(params.get("demo"));
@@ -66,10 +78,12 @@ async function loadPuzzle(){
   }
 }
 
-function init(raw){
+function init(raw, options={}){
   P=buildPuzzle(raw);
-  STORAGE="cumhuriyet-bulmaca-"+(P.date||P.no);
-  try{const s=JSON.parse(localStorage.getItem(STORAGE));if(s&&s.entries)entries=s.entries;}catch(e){}
+  const isPreview=!!options.preview;
+  STORAGE=isPreview?"cumhuriyet-bulmaca-admin-preview-entries":"cumhuriyet-bulmaca-"+(P.date||P.no);
+  entries={};
+  if(!isPreview)try{const s=JSON.parse(localStorage.getItem(STORAGE));if(s&&s.entries)entries=s.entries;}catch(e){}
   $("dateText").textContent=trDate(P.date);
   $("puzzleNo").textContent=P.no||"—";
   document.title=`${trDate(P.date)} Kare Bulmaca — Cumhuriyet`;
@@ -122,7 +136,9 @@ function showNotice(state, date){
   document.querySelector(".layout").style.display="none";
   const m = state==="empty"
     ? {h:"Bu güne ait bulmaca yok", p:"Bu tarih için bulmaca henüz yayımlanmamış olabilir. Bugünün bulmacasını ya da diğer günleri deneyebilirsiniz."}
-    : {h:"Bulmaca yüklenemedi", p:"Beklenmeyen bir sorun oluştu. Lütfen biraz sonra tekrar deneyin."};
+    : state==="preview-empty"
+      ? {h:"Önizleme bulunamadı", p:"Editörden yeni bir oyuncu önizlemesi açın."}
+      : {h:"Bulmaca yüklenemedi", p:"Beklenmeyen bir sorun oluştu. Lütfen biraz sonra tekrar deneyin."};
   $("notice").innerHTML =
     `<div class="notice-h">${m.h}</div><div class="notice-p">${m.p}</div>`+
     `<a class="notice-btn" href="${BASE}/">Bugünün bulmacası</a>`;
@@ -227,6 +243,11 @@ document.body.addEventListener("click",()=>{if(sel.r!==null)focusInput();});
 
 loadPuzzle().then(r=>{
   if(r.state==="ok"){ init(r.puzzle); }
-  else if(r.state==="demo"){ init(r.puzzle); $("demoBadge").style.display="block"; }
+  else if(r.state==="preview"){
+    init(r.puzzle,{preview:true});
+    $("demoBadge").textContent="Önizleme — editör taslağı";
+    $("demoBadge").hidden=false;
+  }
+  else if(r.state==="demo"){ init(r.puzzle); $("demoBadge").hidden=false; }
   else { showNotice(r.state, r.date); }
 });

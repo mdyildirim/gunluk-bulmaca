@@ -17,7 +17,7 @@
   .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px;}
   .card h2{font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);}
   label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px;}
-  input[type=text],input[type=date],textarea,select{width:100%;padding:8px;border:1px solid var(--line);
+  input[type=text],input[type=date],textarea{width:100%;padding:8px;border:1px solid var(--line);
     border-radius:6px;font-family:var(--sans);font-size:14px;background:#fff;}
   textarea#grid{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:18px;line-height:1.5;
     letter-spacing:6px;text-transform:uppercase;min-height:160px;white-space:pre;}
@@ -47,47 +47,30 @@
   .pill{font-size:11px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);}
   .pill.scheduled{background:#fff3bf;} .pill.draft{background:#f1f3f5;}
   td a{color:var(--accent);}
-  #importIssues,#csvIssues{font-size:12px;line-height:1.5;margin-top:6px;}
-  #importIssues .i-error,#csvIssues .i-error{color:var(--err);}
-  #importIssues .i-warn,#csvIssues .i-warn{color:var(--warn);}
-  #importIssues .i-info,#csvIssues .i-info{color:var(--muted);}
-  #importIssues .i-ok,#csvIssues .i-ok{color:var(--ok);font-weight:600;}
+  #importIssues{font-size:12px;line-height:1.5;margin-top:6px;}
+  #importIssues .i-error{color:var(--err);}
+  #importIssues .i-warn{color:var(--warn);}
+  #importIssues .i-info{color:var(--muted);}
+  #importIssues .i-ok{color:var(--ok);font-weight:600;}
   input[type=file]{font-size:13px;}
 </style>
 </head>
 <body>
   <h1>Günlük Kare Bulmaca — Editör</h1>
-  <div class="sub">Çözülmüş ızgarayı yaz, ipuçlarını gir, doğrula, önizle ve yayın tarihi ata.</div>
+  <div class="sub">Hazırla, önizle, yayınla.</div>
 
   <div class="grid2">
     <div>
       <div class="card">
-        <h2>0 · Görselden getir</h2>
-        <div class="sub" style="margin:0 0 8px">Çözülmüş fotoğrafı yükleyip “Getir”e basın. İpuçları, ızgaradan türetilen slotlara bağlanır; eksik/eşleşmeyenler “3 · İpuçları”nda işaretlenir. <b>Izgarayı</b> ya “2 · Izgara”ya kendiniz yazın, ya da aşağıdaki kutuyu işaretleyip LLM taslağıyla başlayın — taslağı fotoğrafla karşılaştırıp düzeltmeniz gerekir (geometri %100 güvenilir değildir).</div>
+        <h2>0 · Analiz</h2>
         <input type="file" id="imgSolved" accept="image/*">
-        <label>LLM sağlayıcı</label>
-        <select id="importProvider">
-          <option value="gemini">Gemini 3.5 Flash</option>
-          <option value="openai">OpenAI gpt-5.5</option>
-        </select>
-        <label style="display:flex;align-items:center;gap:6px;margin:8px 0;font-size:13px;color:var(--ink)"><input type="checkbox" id="wantGrid" style="width:auto"> Izgarayı da doldur (taslak — kontrol edin)</label>
         <div class="row">
           <div><label>Satır sayısı</label><input type="text" id="gridRows" inputmode="numeric" placeholder="örn. 11"></div>
           <div><label>Sütun sayısı</label><input type="text" id="gridCols" inputmode="numeric" placeholder="örn. 17"></div>
         </div>
-        <div class="row">
-          <div><label>Izgara düşünme</label><select id="gridThinking"></select></div>
-          <div><label>İpucu düşünme</label><select id="clueThinking"></select></div>
-        </div>
-        <div class="sub" style="margin:3px 0 0;font-size:11px">Satır/sütun yalnızca “Izgarayı da doldur” için: boyut bilinince LLM her satırı tam o uzunlukta üretmeye zorlanır.</div>
-        <div class="sub" style="margin:6px 0 0;font-size:11px">İpuçları ve ızgara seçilen LLM ile okunur; cevaplar serbest yazdırılmaz, grid slotlarına bağlanır. High daha yavaş ve pahalıdır; zor görsellerde deneyin.</div>
-        <div class="btns" style="margin-top:10px"><button id="importBtn">Getir (LLM)</button></div>
+        <div class="btns" style="margin-top:10px"><button id="importBtn">Analiz Et</button></div>
         <div id="importStatus" class="sub" style="margin-top:8px"></div>
         <div id="importIssues"></div>
-        <details id="importDebugWrap" style="margin-top:8px;display:none">
-          <summary class="sub" style="cursor:pointer;user-select:none">🔍 LLM ham yanıtları (hata ayıklama)</summary>
-          <pre id="importDebug" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.45;white-space:pre-wrap;word-break:break-word;background:#faf8f3;border:1px solid var(--line);border-radius:6px;padding:8px;max-height:380px;overflow:auto;margin:6px 0 0"></pre>
-        </details>
       </div>
       <div class="card">
         <h2>1 · Künye</h2>
@@ -99,7 +82,7 @@
       </div>
       <div class="card">
         <h2>2 · Izgara (çözüm)</h2>
-        <div class="sub" style="margin:0 0 8px">Her satır bir satır. Harf = dolu kare, <b>#</b> = siyah kare. Eşit uzunlukta yazın.</div>
+        <div class="sub" style="margin:0 0 8px">Harf = dolu, # = siyah.</div>
         <textarea id="grid" spellcheck="false">TAM#
 E#AY
 KASA
@@ -113,16 +96,9 @@ KASA
     </div>
     <div>
       <div class="card"><h2>Önizleme</h2><div id="previewGrid" class="preview-grid"></div>
-        <div class="btns"><a id="openPlayer" href="#" target="_blank"><button>Oyuncu önizlemesi ↗</button></a></div></div>
+        <div class="btns"><a id="openPlayer" href="#" target="_blank"><button>Oyuncu önizlemesi</button></a></div></div>
       <div class="card">
         <h2>3 · İpuçları</h2>
-        <div class="sub" style="margin:0 0 8px">CSV yükleyebilirsiniz: <b>answer,dir,clue</b>, <b>slot,clue</b> ya da başlıklı <b>ipucu,cevap,yön</b>. Yön boşsa cevap ızgarada tekilse otomatik eşleşir.</div>
-        <div class="row" style="align-items:end;margin-bottom:8px">
-          <div><label>İpucu CSV</label><input type="file" id="csvClues" accept=".csv,text/csv,text/plain"></div>
-          <div style="flex:0 0 auto"><button id="csvImportBtn">CSV yükle</button></div>
-        </div>
-        <div id="csvStatus" class="sub" style="margin-top:0"></div>
-        <div id="csvIssues"></div>
         <div class="clue-cols">
           <div><h3>Soldan Sağa</h3><div id="acrossClues"></div></div>
           <div><h3>Yukarıdan Aşağıya</h3><div id="downClues"></div></div>
@@ -135,7 +111,6 @@ KASA
           <button id="validate">Doğrula</button>
           <button id="saveDraft">Taslak Kaydet</button>
           <button id="schedule" class="primary">Yayına Zamanla</button>
-          <button id="exportJson">JSON indir</button>
         </div>
       </div>
     </div>
