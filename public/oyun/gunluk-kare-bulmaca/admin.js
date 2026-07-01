@@ -3,7 +3,6 @@ import { buildWords, normalizeSolution, validate, isoToUrlDate, reconcileImport,
 const BASE = "/oyun/gunluk-kare-bulmaca";
 const IMPORT_PROVIDER = "openai";
 const IMPORT_LABEL = "GPT-5.5";
-const THINKING_LEVEL = "high";
 const PREVIEW_KEY = "cumhuriyet-bulmaca-admin-preview";
 const $=id=>document.getElementById(id);
 let clues={across:{},down:{}};
@@ -171,11 +170,7 @@ async function readImportStream(res,onProgress){
 async function runImport(){
   const fs=$("imgSolved").files&&$("imgSolved").files[0];
   if(!fs){alert("Çözülmüş fotoğrafı seçin.");return;}
-  let grid=readGrid();
-  const rows=parseInt(($("gridRows")&&$("gridRows").value)||"",10);
-  const cols=parseInt(($("gridCols")&&$("gridCols").value)||"",10);
-  const gridThinking=THINKING_LEVEL;
-  const clueThinking=THINKING_LEVEL;
+  let grid;
   const btn=$("importBtn"),st=$("importStatus"),old=btn.textContent;
   btn.disabled=true;btn.textContent="İşleniyor...";
   st.textContent=`${IMPORT_LABEL}: analiz ediliyor...`;
@@ -183,8 +178,7 @@ async function runImport(){
   try{
     const imageBase64=await fileToBase64(fs);
     const res=await fetch(`${BASE}/api/admin/import`,{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({provider:IMPORT_PROVIDER,imageBase64,mimeType:fs.type,withGrid:true,
-        rows:rows||undefined,cols:cols||undefined,gridThinking,clueThinking})});
+      body:JSON.stringify({provider:IMPORT_PROVIDER,imageBase64,mimeType:fs.type,withGrid:true})});
     const isStream=(res.headers.get("content-type")||"").includes("application/x-ndjson");
     const data = isStream
       ? await readImportStream(res,m=>{
