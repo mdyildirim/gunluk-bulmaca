@@ -1,6 +1,6 @@
 import { json } from "../../../../_lib/http.js";
 import { validate } from "../../../../_lib/engine.js";
-import { isISODate } from "../../../../_lib/dates.js";
+import { isISODate, todayInIstanbul } from "../../../../_lib/dates.js";
 
 // Bu yol /api/admin/* altında olduğundan _middleware Basic auth ile korur.
 
@@ -30,10 +30,11 @@ function cluesForStorage(clues, media) {
 
 // GET — kayıtlı bulmacaların listesi (editör paneli için)
 export const onRequestGet = async ({ env }) => {
+  const today = todayInIstanbul();
   const { results } = await env.DB
     .prepare("SELECT puzzle_date,no,title,status,updated_at FROM puzzles ORDER BY puzzle_date DESC LIMIT 200")
     .all();
-  return json({ puzzles: results || [] }, 200, { "cache-control": "no-store" });
+  return json({ today, puzzles: results || [] }, 200, { "cache-control": "no-store" });
 };
 
 // POST — doğrula + kaydet (taslak | zamanla). Izgaradan otomatik üretilen
@@ -62,4 +63,34 @@ export const onRequestPost = async ({ env, request }) => {
     .run();
 
   return json({ ok: true, warnings: v.warnings }, 200, { "cache-control": "no-store" });
+};
+
+// DELETE — yalnızca henüz yayına girmemiş zamanlanmış bulmacaları sil.
+export const onRequestDelete = async ({ env, request }) => {
+  const date = new URL(request.url).searchParams.get("date");
+  if (!isISODate(date)) return json({ ok: false, error: "Geçersiz yayın tarihi." }, 400);
+
+  const row = await env.DB
+    .prepare("SELECT status FROM puzzles WHERE puzzle_date=?")
+    .bind(date)
+    .first();
+  if (!row) return json({ ok: false, error: "Bulmaca bulunamadı." }, 404, { "cache-control": "no-store" });
+  if (row.status !== "scheduled") {
+    return json({ ok: false, error: "Yalnızca zamanlanmış bulmacalar silinebilir." }, 409, { "cache-control": "no-store" });
+  }
+
+  const today = todayInIstanbul();
+  if (date <= today) {
+    return json({ ok: false, error: "Yayın tarihi gelmiş bulmacalar bu işlemle silinemez." }, 409, { "cache-control": "no-store" });
+  }
+
+  const result = await env.DB
+    .prepare("DELETE FROM puzzles WHERE puzzle_date=? AND status='scheduled' AND puzzle_date>?")
+    .bind(date, today)
+    .run();
+  if (!result.meta || result.meta.changes !== 1) {
+    return json({ ok: false, error: "Bulmaca silinemedi." }, 409, { "cache-control": "no-store" });
+  }
+
+  return json({ ok: true }, 200, { "cache-control": "no-store" });
 };

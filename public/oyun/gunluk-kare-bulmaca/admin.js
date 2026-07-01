@@ -3,11 +3,13 @@ import { buildWords, normalizeSolution, validate, isoToUrlDate, reconcileImport,
 const BASE = "/oyun/gunluk-kare-bulmaca";
 const IMPORT_PROVIDER = "openai";
 const PREVIEW_KEY = "cumhuriyet-bulmaca-admin-preview";
+const EDITOR_DRAFT_KEY = "cumhuriyet-bulmaca-admin-editor-draft-v1";
 const $=id=>document.getElementById(id);
 let clues={across:{},down:{}};
 let answerEdits={across:{},down:{}};
 let media=[];
 let mediaPlacementMode="auto";
+let editorDraftTimer=null;
 
 $("date").value=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Istanbul"}).format(new Date());
 
@@ -27,6 +29,72 @@ const intVal=(id,def=1)=>{const n=Math.trunc(Number($(id).value));return Number.
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 const hasMediaPlacement=m=>Number.isFinite(Number(m.row))&&Number.isFinite(Number(m.col))&&
   Number.isFinite(Number(m.rows))&&Number.isFinite(Number(m.cols));
+function cleanTextMap(value){
+  const out={};
+  if(!value||typeof value!=="object")return out;
+  Object.entries(value).forEach(([k,v])=>{
+    if(/^\d+$/.test(String(k))&&v!=null)out[String(k)]=String(v);
+  });
+  return out;
+}
+function cleanPairState(value){
+  return {across:cleanTextMap(value&&value.across),down:cleanTextMap(value&&value.down)};
+}
+function cleanMediaState(value){
+  return (Array.isArray(value)?value:[])
+    .filter(m=>m&&m.type==="image"&&typeof m.src==="string"&&m.src.startsWith("data:image/"))
+    .map(m=>{
+      const out={type:"image",src:m.src};
+      if(hasMediaPlacement(m)){
+        out.row=Math.max(1,Math.trunc(Number(m.row)||1));
+        out.col=Math.max(1,Math.trunc(Number(m.col)||1));
+        out.rows=Math.max(1,Math.trunc(Number(m.rows)||1));
+        out.cols=Math.max(1,Math.trunc(Number(m.cols)||1));
+      }
+      return out;
+    })
+    .slice(0,1);
+}
+function editorDraftState({withMedia=true}={}){
+  return {
+    savedAt:Date.now(),
+    date:$("date").value,
+    no:$("no").value,
+    title:$("title").value,
+    grid:$("grid").value,
+    clues:cleanPairState(clues),
+    answerEdits:cleanPairState(answerEdits),
+    media:withMedia?cleanMediaState(media):[],
+    mediaPlacementMode
+  };
+}
+function persistEditorDraftNow(options={}){
+  try{
+    localStorage.setItem(EDITOR_DRAFT_KEY,JSON.stringify(editorDraftState(options)));
+  }catch(e){
+    if(options.withMedia===false)return;
+    try{localStorage.setItem(EDITOR_DRAFT_KEY,JSON.stringify(editorDraftState({withMedia:false})));}catch(err){}
+  }
+}
+function persistEditorDraftSoon(){
+  clearTimeout(editorDraftTimer);
+  editorDraftTimer=setTimeout(()=>persistEditorDraftNow(),120);
+}
+function restoreEditorDraft(){
+  let saved;
+  try{saved=JSON.parse(localStorage.getItem(EDITOR_DRAFT_KEY)||"null");}catch(e){return false;}
+  if(!saved||typeof saved!=="object")return false;
+  if(typeof saved.date==="string"&&saved.date)$("date").value=saved.date;
+  if(typeof saved.no==="string")$("no").value=saved.no;
+  if(typeof saved.title==="string")$("title").value=saved.title;
+  if(typeof saved.grid==="string")$("grid").value=saved.grid;
+  clues=cleanPairState(saved.clues);
+  answerEdits=cleanPairState(saved.answerEdits);
+  media=cleanMediaState(saved.media);
+  mediaPlacementMode=saved.mediaPlacementMode==="manual"?"manual":"auto";
+  syncMediaControls();
+  return true;
+}
 function mediaForGrid(rows,cols){
   return media.filter(m=>m&&m.src&&hasMediaPlacement(m)).map(m=>{
     const row=clamp(Math.trunc(Number(m.row)||1),1,Math.max(1,rows));
@@ -57,6 +125,7 @@ function updateMediaFromControls(){
     rows:intVal("mediaRows",media[0].rows||1),
     cols:intVal("mediaCols",media[0].cols||1)};
   renderPreview();
+  persistEditorDraftSoon();
 }
 function nudgeMedia(dr,dc){
   if(!media[0]||!media[0].src){$("mediaStatus").textContent="Önce görsel seçin.";return;}
@@ -72,6 +141,7 @@ function nudgeMedia(dr,dc){
     cols:current.cols};
   syncMediaControls();
   renderPreview();
+  persistEditorDraftSoon();
 }
 function largestBlackRect(){
   const {rows,cols,isBlack}=model();
@@ -100,12 +170,14 @@ function autoPlaceMedia({quiet=false}={}){
     delete media[0].row;delete media[0].col;delete media[0].rows;delete media[0].cols;
     syncMediaControls();renderPreview();
     $("mediaStatus").textContent=quiet?"Görsel hazır.":"Siyah alan bulunamadı.";
+    persistEditorDraftSoon();
     return false;
   }
   mediaPlacementMode="auto";
   media[0]={...media[0],row:rect.row,col:rect.col,rows:rect.rows,cols:rect.cols};
   syncMediaControls();
   renderPreview();
+  persistEditorDraftSoon();
   return true;
 }
 function handleGridInput(){
@@ -114,6 +186,7 @@ function handleGridInput(){
     return;
   }
   renderPreview();
+  persistEditorDraftSoon();
 }
 function renderPreviewMedia(g,rows,cols){
   for(const m of mediaForGrid(rows,cols)){
@@ -161,11 +234,12 @@ function genClues(){
     ansInp.addEventListener("input",()=>{
       answerEdits[w.dir][w.num]=ansInp.value;
       checkAnswerInput(row,ansInp,answers);
+      persistEditorDraftSoon();
     });
     const inp=document.createElement("input");inp.type="text";
     inp.className="clue-input";
     inp.value=(clues[w.dir]&&clues[w.dir][w.num])||"";inp.placeholder="İpucu…";
-    inp.addEventListener("input",()=>{clues[w.dir][w.num]=inp.value;});
+    inp.addEventListener("input",()=>{clues[w.dir][w.num]=inp.value;persistEditorDraftSoon();});
     row.appendChild(lbl);row.appendChild(ansInp);
     row.appendChild(inp);checkAnswerInput(row,ansInp,answers);return row;
   };
@@ -173,6 +247,7 @@ function genClues(){
   m.words.filter(w=>w.dir==="down").sort((x,y)=>x.num-y.num).forEach(w=>d.appendChild(mk(w)));
   renderPreview();
   updatePlayerPreviewHref();
+  persistEditorDraftSoon();
 }
 function payload(){
   return {date:$("date").value,no:$("no").value,title:$("title").value,solution:readGrid(),clues,media:cleanMediaForPayload()};
@@ -188,6 +263,7 @@ function preparePlayerPreview(e){
   showReport(validate(data));
   try{
     localStorage.setItem(PREVIEW_KEY,JSON.stringify({createdAt:Date.now(),puzzle:data}));
+    persistEditorDraftNow();
     $("openPlayer").href=`${BASE}/play.html?preview=admin&v=${Date.now()}`;
   }catch(err){
     e.preventDefault();alert("Önizleme hazırlanamadı.");
@@ -203,6 +279,7 @@ function showReport(v){
 async function save(status){
   const v=validate(payload());showReport(v);
   if(!v.ok){alert("Doğrulama hatası var, önce düzeltin.");return;}
+  persistEditorDraftNow();
   try{
     const res=await fetch(`${BASE}/api/admin/puzzles`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...payload(),status})});
     if(res.ok){alert(status==="scheduled"?"Yayına zamanlandı.":"Taslak kaydedildi.");loadList();}
@@ -212,13 +289,57 @@ async function save(status){
 async function loadList(){
   try{
     const res=await fetch(`${BASE}/api/admin/puzzles`);if(!res.ok)throw 0;
-    const {puzzles}=await res.json();
+    const {puzzles,today}=await res.json();
     const tb=$("list").querySelector("tbody");tb.innerHTML="";
-    if(!puzzles||!puzzles.length){tb.innerHTML='<tr><td class="sub">Kayıt yok.</td></tr>';return;}
-    puzzles.forEach(p=>{const tr=document.createElement("tr");
-      tr.innerHTML=`<td><a href="${BASE}/${isoToUrlDate(p.puzzle_date)}" target="_blank">${p.puzzle_date}</a></td><td>${p.no||""}</td><td><span class="pill ${p.status}">${p.status}</span></td>`;
-      tb.appendChild(tr);});
-  }catch(e){$("list").querySelector("tbody").innerHTML='<tr><td class="sub">API yok (yerel statik önizleme).</td></tr>';}
+    if(!puzzles||!puzzles.length){tb.innerHTML='<tr><td class="sub" colspan="4">Kayıt yok.</td></tr>';return;}
+    puzzles.forEach(p=>{
+      const tr=document.createElement("tr");
+      const dateTd=document.createElement("td");
+      const link=document.createElement("a");
+      link.href=`${BASE}/${isoToUrlDate(p.puzzle_date)}`;
+      link.target="_blank";
+      link.textContent=p.puzzle_date;
+      dateTd.appendChild(link);
+      const noTd=document.createElement("td");
+      noTd.textContent=p.no||"";
+      const statusTd=document.createElement("td");
+      const pill=document.createElement("span");
+      const status=p.status==="scheduled"?"scheduled":"draft";
+      pill.className=`pill ${status}`;
+      pill.textContent=p.status||"";
+      statusTd.appendChild(pill);
+      const actionTd=document.createElement("td");
+      if(status==="scheduled"&&today&&p.puzzle_date>today){
+        const btn=document.createElement("button");
+        btn.type="button";
+        btn.className="danger small";
+        btn.textContent="Sil";
+        btn.addEventListener("click",()=>deleteScheduledPuzzle(p.puzzle_date));
+        actionTd.appendChild(btn);
+      }else{
+        actionTd.className="sub";
+        actionTd.textContent="—";
+      }
+      tr.appendChild(dateTd);
+      tr.appendChild(noTd);
+      tr.appendChild(statusTd);
+      tr.appendChild(actionTd);
+      tb.appendChild(tr);
+    });
+  }catch(e){$("list").querySelector("tbody").innerHTML='<tr><td class="sub" colspan="4">API yok (yerel statik önizleme).</td></tr>';}
+}
+async function deleteScheduledPuzzle(date){
+  if(!confirm(`${date} tarihli zamanlanmış bulmacayı silmek istiyor musunuz?`))return;
+  try{
+    const res=await fetch(`${BASE}/api/admin/puzzles?date=${encodeURIComponent(date)}`,{method:"DELETE"});
+    const data=await res.json().catch(()=>({}));
+    if(res.ok){
+      alert("Zamanlanmış bulmaca silindi.");
+      loadList();
+      return;
+    }
+    alert("Silme hatası: "+(data.error||res.status));
+  }catch(e){alert("API'ye ulaşılamadı.");}
 }
 
 // --- Görselden içe aktar (LLM) ---
@@ -357,6 +478,10 @@ async function runImport(){
 
 $("importBtn").onclick=runImport;
 $("grid").addEventListener("input",handleGridInput);
+$("date").addEventListener("input",persistEditorDraftSoon);
+$("no").addEventListener("input",persistEditorDraftSoon);
+$("title").addEventListener("input",persistEditorDraftSoon);
+window.addEventListener("beforeunload",()=>persistEditorDraftNow());
 $("genClues").onclick=genClues;
 $("validate").onclick=()=>showReport(validate(payload()));
 $("saveDraft").onclick=()=>save("draft");
@@ -370,7 +495,7 @@ $("mediaImage").addEventListener("change",async e=>{
     media=[{type:"image",src:await imageFileToDataUrl(file)}];
     autoPlaceMedia({quiet:true});
   }catch(err){
-    media=[];mediaPlacementMode="auto";syncMediaControls();renderPreview();alert((err&&err.message)||"Görsel yüklenemedi.");
+    media=[];mediaPlacementMode="auto";syncMediaControls();renderPreview();persistEditorDraftSoon();alert((err&&err.message)||"Görsel yüklenemedi.");
   }
 });
 ["mediaRow","mediaCol","mediaRows","mediaCols"].forEach(id=>$(id).addEventListener("input",updateMediaFromControls));
@@ -379,5 +504,6 @@ $("mediaDown").onclick=()=>nudgeMedia(1,0);
 $("mediaLeft").onclick=()=>nudgeMedia(0,-1);
 $("mediaRight").onclick=()=>nudgeMedia(0,1);
 $("mediaAuto").onclick=autoPlaceMedia;
-$("mediaClear").onclick=()=>{media=[];mediaPlacementMode="auto";$("mediaImage").value="";syncMediaControls();renderPreview();};
+$("mediaClear").onclick=()=>{media=[];mediaPlacementMode="auto";$("mediaImage").value="";syncMediaControls();renderPreview();persistEditorDraftSoon();};
+restoreEditorDraft();
 genClues();loadList();
